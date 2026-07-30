@@ -310,8 +310,8 @@ fn hybrid_tunnel_space(p: vec2f, segments: f32, t: f32) -> vec2f {
   return cell;
 }
 
-fn layout_space(p: vec2f, layout: f32, segments: f32, t: f32) -> vec2f {
-  let lo = floor(layout + 0.5);
+fn space_for_mode(p: vec2f, mode: f32, segments: f32, t: f32) -> vec2f {
+  let lo = floor(mode + 0.5);
   if (lo < 0.5) {
     return kaleido(p, segments);
   } else if (lo < 1.5) {
@@ -382,9 +382,9 @@ fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
   let t = u.time;
   let theme = mix(u.theme_a, u.theme_b, u.theme_mix);
   let segments = mix(u.mirrors_a, u.mirrors_b, u.mirror_mix);
-  let layout = mix(u.layout_a, u.layout_b, u.layout_mix);
-  // 0..2 weight used for tunnel structure fade
-  let layout_w = layout;
+  // 0 kaleido / 1 tunnel / 2 hybrid — avoid WGSL reserved word `layout`
+  let mode = mix(u.layout_a, u.layout_b, u.layout_mix);
+  let layout_w = mode;
 
   var uv = (uv_in * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
   let uv0 = uv;
@@ -395,14 +395,14 @@ fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
   let rot = t * (0.06 + theme * 0.012);
   uv = rotate2(uv, rot);
 
-  // Pre-fold mirrors (shared by all layouts)
+  // Pre-fold mirrors (shared by all modes)
   let ua = kaleido(uv, u.mirrors_a);
   let ub = kaleido(uv, u.mirrors_b);
   var folded = mix(ua, ub, u.mirror_mix);
 
-  // Layout spaces morph (kaleido ↔ tunnel ↔ hybrid)
-  let space_a = layout_space(folded, u.layout_a, u.mirrors_a, t);
-  let space_b = layout_space(folded, u.layout_b, u.mirrors_b, t);
+  // Mode spaces morph (kaleido ↔ tunnel ↔ hybrid)
+  let space_a = space_for_mode(folded, u.layout_a, u.mirrors_a, t);
+  let space_b = space_for_mode(folded, u.layout_b, u.mirrors_b, t);
   var p = mix(space_a, space_b, u.layout_mix);
 
   p = morph_variations(p * (0.82 + 0.18 * sin(t * 0.13 + theme)), t);
