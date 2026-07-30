@@ -44,35 +44,44 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VSOut {
   return out;
 }
 
+// Wide-spectrum cosine ramp — cyan/magenta/yellow/green/orange/violet coexist
+fn rainbow(t: f32) -> vec3f {
+  let a = vec3f(0.55, 0.50, 0.55);
+  let b = vec3f(0.55, 0.50, 0.50);
+  // High, staggered frequencies so many hues appear across one frame
+  let c = vec3f(1.15, 0.95, 0.75);
+  let d = vec3f(0.00 + u.seed * 0.03, 0.33, 0.67);
+  return a + b * cos(6.28318 * (c * t + d));
+}
+
+// Theme only tints / biases the full spectrum — never collapses to one hue family
 fn palette_theme(t: f32, theme: f32) -> vec3f {
-  var a = vec3f(0.50, 0.42, 0.55);
-  var b = vec3f(0.48, 0.38, 0.42);
-  var c = vec3f(1.00, 0.95, 0.80);
-  var d = vec3f(0.15, 0.33, 0.67);
+  // Primary + two phase-shifted lobes → simultaneous rainbow bands
+  var col = rainbow(t) * 0.52
+    + rainbow(t + 0.28) * 0.28
+    + rainbow(t + 0.55) * 0.20;
 
   let th = floor(theme + 0.5);
+  // Soft bias (not a replacement) so themes still feel distinct
+  var bias = vec3f(1.0);
   if (th < 0.5) {
-    a = vec3f(0.50, 0.40, 0.55); b = vec3f(0.50, 0.40, 0.45);
-    c = vec3f(1.0, 1.0, 0.85); d = vec3f(0.00, 0.33, 0.67);
+    bias = vec3f(0.95, 1.05, 1.15); // ribbon — lean cyan/violet
   } else if (th < 1.5) {
-    a = vec3f(0.45, 0.28, 0.38); b = vec3f(0.55, 0.35, 0.40);
-    c = vec3f(1.1, 0.7, 0.9); d = vec3f(0.55, 0.20, 0.40);
+    bias = vec3f(1.15, 0.90, 1.10); // gothic — lean magenta/ember
   } else if (th < 2.5) {
-    a = vec3f(0.55, 0.45, 0.40); b = vec3f(0.45, 0.35, 0.30);
-    c = vec3f(0.9, 0.85, 0.7); d = vec3f(0.10, 0.45, 0.20);
+    bias = vec3f(1.12, 1.05, 0.88); // bloom — lean gold/rose
   } else if (th < 3.5) {
-    a = vec3f(0.35, 0.50, 0.45); b = vec3f(0.40, 0.45, 0.35);
-    c = vec3f(1.0, 1.1, 0.9); d = vec3f(0.30, 0.60, 0.10);
+    bias = vec3f(0.90, 1.15, 1.00); // spiral — lean teal/lime
   } else if (th < 4.5) {
-    a = vec3f(0.55, 0.35, 0.45); b = vec3f(0.50, 0.30, 0.40);
-    c = vec3f(1.05, 0.75, 0.85); d = vec3f(0.70, 0.15, 0.50);
+    bias = vec3f(1.15, 0.95, 0.95); // heart — lean coral
   } else {
-    a = vec3f(0.40, 0.38, 0.50); b = vec3f(0.45, 0.40, 0.45);
-    c = vec3f(0.95, 0.90, 1.05); d = vec3f(0.20, 0.50, 0.80);
+    bias = vec3f(0.95, 1.00, 1.15); // curl — lean blue/amber via mix below
   }
 
-  d.x += u.seed * 0.05;
-  return a + b * cos(6.28318 * (c * t + d));
+  col *= bias;
+  // Keep a secondary opposite-spectrum sparkle so yellow/green stay present
+  col += rainbow(t * 1.7 + theme * 0.15 + 0.4) * 0.22;
+  return max(col, vec3f(0.0));
 }
 
 fn palette(t: f32) -> vec3f {
@@ -279,36 +288,40 @@ fn tunnel_uv(p: vec2f, t: f32) -> vec2f {
   return vec2f(ang * 1.5, depth * 0.55) + t * vec2f(0.08, 0.85);
 }
 
-// Hybrid kaleidoscope tunnel (tfBXzD-inspired):
-// fold → tunnel → re-fold angle lanes for recursive corridor feel
+// Hybrid kaleidoscope tunnel (tfBXzD / NflSD8-inspired infinite folds):
+// fold → 1/r depth → nested kaleido along depth for recursive corridor
 fn hybrid_tunnel_space(p: vec2f, segments: f32, t: f32) -> vec2f {
   var q = kaleido(p, segments);
   q = rotate2(q, t * 0.12);
-  let ang = atan2(q.y, q.x);
+  let ang0 = atan2(q.y, q.x);
   let depth = 1.0 / max(length(q), 0.05);
   let tz = depth + t * 1.15;
-  // twist + mirror the angular lanes as we fly
-  var a = ang + 0.55 * sin(tz * 0.35 + t * 0.4);
-  let slice = 6.28318530718 / max(segments, 2.0);
+
+  // Depth-dependent mirror count (NflSD8 infinite-tunnel feel, still cheap)
+  let segs2 = max(segments + 2.0 * sin(tz * 0.25), 3.0);
+  var a = ang0 + 0.55 * sin(tz * 0.35 + t * 0.4);
+  let slice = 6.28318530718 / segs2;
   a = a - slice * floor(a / slice);
   a = abs(a - slice * 0.5);
-  return vec2f(a / 3.14159265 * 2.2, tz * 0.35);
+
+  // Second nested fold in depth slabs
+  var cell = vec2f(a / 3.14159265 * 2.2, fract(tz * 0.35) - 0.5);
+  cell = kaleido(cell, max(segments * 0.5, 3.0));
+  return cell;
 }
 
 fn layout_space(p: vec2f, layout: f32, segments: f32, t: f32) -> vec2f {
   let lo = floor(layout + 0.5);
   if (lo < 0.5) {
-    // flat kaleidoscope domain
     return kaleido(p, segments);
   } else if (lo < 1.5) {
-    // pure polar tunnel
+    // Classic polar tunnel (4djBRm)
     let tuv = tunnel_uv(p, t);
-    // wrap into a foldable 2D domain for the fractal pass
     return vec2f(fract(tuv.x) - 0.5, fract(tuv.y) - 0.5);
   }
-  // hybrid
+  // Hybrid infinite kaleido-tunnel
   let huv = hybrid_tunnel_space(p, segments, t);
-  return vec2f(fract(huv.x) - 0.5, fract(huv.y * 0.65) - 0.5);
+  return vec2f(fract(huv.x + 0.5) - 0.5, fract(huv.y + 0.5) - 0.5);
 }
 
 // Episodic ring field: quiet / sparse pulse / multi-circle storm
@@ -403,7 +416,9 @@ fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
 
     let fi = f32(i);
     let d0 = length(q);
-    let col = palette(length(uv0) + t * 0.32 + fi * 0.22 + u.seed * 0.1);
+    // Per-layer hue offsets so RGB bands stack into a full rainbow
+    let hue = length(uv0) + t * 0.32 + fi * 0.37 + u.seed * 0.1 + atan2(q.y, q.x) * 0.08;
+    let col = palette(hue);
 
     // Base filament: soft distance glow (sheep ribbon, not concentric circles)
     var filament = glow_ring(abs(q.x * q.y) * 2.2 - 0.04 * sin(t + fi), 0.55, 0.012);
@@ -414,11 +429,15 @@ fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
 
     let fall = exp(-d0 * (1.35 + 0.1 * theme));
     final_color += col * (filament * 0.75 + circles) * (0.5 + 0.5 * fall);
+
+    // Cheap spectral sparkle on bright filaments (no extra loops)
+    final_color += rainbow(hue + 0.5) * filament * 0.18 * fall;
   }
 
-  // Tunnel ribs / depth rings over screen-space (layout-weighted)
+  // Tunnel ribs / depth rings — rainbow-shifted along depth
   let tun = tunnel_structure(uv0 * (0.9 + 0.15 * sin(t * 0.2)), t, theme, layout_w);
-  final_color += palette(length(uv0) * 0.4 + t * 0.2 + 0.3) * tun * 1.35;
+  let tun_hue = 1.0 / max(length(uv0), 0.08) * 0.08 + t * 0.2;
+  final_color += (palette(tun_hue) * 0.65 + rainbow(tun_hue + 0.35) * 0.35) * tun * 1.35;
 
   // Occasional outer halo only during ring storms
   let storm = smoothstep(1.0, 1.7, u.ring_amount);
