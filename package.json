@@ -1,0 +1,9 @@
+{
+  "name": "kscope",
+  "private": true,
+  "version": "1.0.0",
+  "description": "WebGPU kaleidoscope — Electric Sheep inspired, 4K@120 ready",
+  "scripts": {
+    "start": "npx --yes serve -l 8787"
+  }
+}

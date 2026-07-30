@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>kscope — WebGPU Kaleidoscope</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <canvas id="gpu"></canvas>
+    <div id="hud">
+      <div class="brand">kscope</div>
+      <div id="stats">—</div>
+      <div class="hint">0 auto · 1–6 theme · t layout · c circles · r remix · space</div>
+    </div>
+    <div id="fallback" hidden>
+      <p>WebGPU is required. Use Chrome / Edge 113+, or Safari Technology Preview with WebGPU enabled.</p>
+    </div>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

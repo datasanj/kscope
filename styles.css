@@ -1,0 +1,92 @@
+:root {
+  --ink: #e8f0ff;
+  --mute: rgba(200, 220, 255, 0.55);
+  --glow: rgba(80, 200, 255, 0.35);
+  --panel: rgba(4, 8, 18, 0.42);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #010208;
+  color: var(--ink);
+  font-family: "Avenir Next", "Segoe UI", sans-serif;
+}
+
+#gpu {
+  display: block;
+  width: 100vw;
+  height: 100vh;
+  touch-action: none;
+  cursor: crosshair;
+}
+
+#hud {
+  position: fixed;
+  left: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 2;
+  padding: 0.85rem 1.1rem;
+  border-radius: 14px;
+  background: var(--panel);
+  backdrop-filter: blur(14px) saturate(1.2);
+  border: 1px solid rgba(140, 190, 255, 0.14);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  user-select: none;
+}
+
+.brand {
+  font-size: 1.35rem;
+  font-weight: 650;
+  letter-spacing: 0.18em;
+  text-transform: lowercase;
+  text-shadow: 0 0 24px var(--glow);
+}
+
+#stats {
+  margin-top: 0.35rem;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.82rem;
+  color: var(--mute);
+}
+
+.hint {
+  margin-top: 0.45rem;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: rgba(180, 200, 230, 0.42);
+}
+
+#fallback {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  display: grid;
+  place-items: center;
+  padding: 2rem;
+  background:
+    radial-gradient(ellipse at 30% 20%, #13284a 0%, transparent 50%),
+    radial-gradient(ellipse at 70% 80%, #3a1240 0%, transparent 45%),
+    #05070e;
+  text-align: center;
+}
+
+#fallback[hidden] {
+  display: none;
+}
+
+#fallback p {
+  max-width: 28rem;
+  line-height: 1.55;
+  font-size: 1.05rem;
+  color: var(--ink);
+}
