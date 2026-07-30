@@ -14,7 +14,7 @@ Fragment-only techniques that stay fast at 4K:
 - Extra flam3 UV warps: ex, exponential, cross, blade (+ prior swirl/spherical/horseshoe/…)
 - Tunnel ribs, angular lanes, vanishing-point bloom — still single-pass, no raymarch
 - Holi gulal powder palettes (gulabi / laal / kesar / hari / rang / neela)
-- Large-scale ribbons & tunnels (coarse folds, thick glow, few mirrors)
+- Bold Octagrams-scale forms ([tlVGDt](https://www.shadertoy.com/view/tlVGDt) aesthetic): big arcs, thick plates, soft `exp` glow — no micro-fract lace
 - Hue-preserving filmic clamp (neon glow without whiteout)
 
 Intentionally **not** ported from Electric Sheep: chaos-game IFS accumulation, density estimation filters, and heavy tone-mapping passes — those fight 4K@120.

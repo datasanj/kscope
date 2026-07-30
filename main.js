@@ -25,8 +25,8 @@ const LAYOUTS = [
 // Prefer hybrid/tunnel more often than flat kaleido
 const LAYOUT_SEQ = [2, 1, 2, 0, 2, 1, 2, 1, 0, 2];
 
-// Fewer mirrors → bigger kaleido wedges (avoid 12–16 micro-slices)
-const MIRROR_SEQ = [3, 4, 5, 6, 4, 5, 7, 3, 6, 5, 4, 8, 5, 6];
+// Few mirrors → wide Octagrams-scale wedges (3–6)
+const MIRROR_SEQ = [3, 4, 5, 3, 4, 6, 3, 5, 4, 3, 5, 4, 6, 4];
 
 // Ring episodes: 0 quiet, 1 sparse, 2 storm — long quiet stretches
 const RING_SEQ = [0, 0, 1, 0, 2, 0, 0, 1, 2, 0, 1, 0];
@@ -55,8 +55,8 @@ const state = {
   themeA: 0,
   themeB: 1,
   themeMix: 0,
-  mirrorsA: 4,
-  mirrorsB: 5,
+  mirrorsA: 3,
+  mirrorsB: 4,
   mirrorMix: 0,
   layoutA: 2,
   layoutB: 1,
