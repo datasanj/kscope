@@ -8,12 +8,12 @@ const UNIFORM_FLOATS = 20;
 const UNIFORM_BYTES = UNIFORM_FLOATS * 4;
 
 const THEMES = [
-  { id: 0, name: "ribbon" },
-  { id: 1, name: "gothic" },
-  { id: 2, name: "bloom" },
-  { id: 3, name: "spiral" },
-  { id: 4, name: "heart" },
-  { id: 5, name: "curl" },
+  { id: 0, name: "gulabi" },
+  { id: 1, name: "laal" },
+  { id: 2, name: "kesar" },
+  { id: 3, name: "hari" },
+  { id: 4, name: "rang" },
+  { id: 5, name: "neela" },
 ];
 
 const LAYOUTS = [
@@ -25,7 +25,8 @@ const LAYOUTS = [
 // Prefer hybrid/tunnel more often than flat kaleido
 const LAYOUT_SEQ = [2, 1, 2, 0, 2, 1, 2, 1, 0, 2];
 
-const MIRROR_SEQ = [3, 4, 5, 6, 7, 8, 9, 10, 12, 8, 5, 16, 6, 11];
+// Fewer mirrors → bigger kaleido wedges (avoid 12–16 micro-slices)
+const MIRROR_SEQ = [3, 4, 5, 6, 4, 5, 7, 3, 6, 5, 4, 8, 5, 6];
 
 // Ring episodes: 0 quiet, 1 sparse, 2 storm — long quiet stretches
 const RING_SEQ = [0, 0, 1, 0, 2, 0, 0, 1, 2, 0, 1, 0];
@@ -44,7 +45,7 @@ const state = {
   seed: Math.random() * 10,
   autoTheme: true,
   pinnedTheme: 0,
-  intensity: 1.15,
+  intensity: 0.95,
   paused: false,
   mouse: [0.5, 0.5],
   last: performance.now(),
@@ -54,8 +55,8 @@ const state = {
   themeA: 0,
   themeB: 1,
   themeMix: 0,
-  mirrorsA: 6,
-  mirrorsB: 8,
+  mirrorsA: 4,
+  mirrorsB: 5,
   mirrorMix: 0,
   layoutA: 2,
   layoutB: 1,
@@ -88,12 +89,13 @@ function updateRingAmount(time) {
   const from = pair.a;
   const to = pair.b;
   // Map enum → intensity; add a little breath so storms feel alive
-  const map = (v) => (v === 0 ? 0 : v === 1 ? 0.75 : 1.85);
+  // Cap storms lower — fewer additive rings / less whiteout
+  const map = (v) => (v === 0 ? 0 : v === 1 ? 0.65 : 1.45);
   let amount = map(from) * (1 - pair.mix) + map(to) * pair.mix;
-  if (amount > 1.2) {
-    amount += 0.15 * Math.sin(time * 3.1);
+  if (amount > 1.0) {
+    amount += 0.1 * Math.sin(time * 2.2);
   } else if (amount > 0.2) {
-    amount *= 0.85 + 0.15 * Math.sin(time * 1.4);
+    amount *= 0.88 + 0.12 * Math.sin(time * 1.1);
   }
   state.ringAmount = Math.max(0, amount);
 }
@@ -295,9 +297,9 @@ async function init() {
       state.autoTheme = true;
       state.time += THEME_DWELL * 0.85;
     } else if (e.key === "+" || e.key === "=") {
-      state.intensity = Math.min(2.5, state.intensity + 0.08);
+      state.intensity = Math.min(1.8, state.intensity + 0.06);
     } else if (e.key === "-" || e.key === "_") {
-      state.intensity = Math.max(0.4, state.intensity - 0.08);
+      state.intensity = Math.max(0.35, state.intensity - 0.06);
     }
   });
 

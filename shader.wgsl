@@ -44,43 +44,71 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VSOut {
   return out;
 }
 
-// Wide-spectrum cosine ramp — cyan/magenta/yellow/green/orange/violet coexist
-fn rainbow(t: f32) -> vec3f {
-  let a = vec3f(0.55, 0.50, 0.55);
-  let b = vec3f(0.55, 0.50, 0.50);
-  // High, staggered frequencies so many hues appear across one frame
-  let c = vec3f(1.15, 0.95, 0.75);
-  let d = vec3f(0.00 + u.seed * 0.03, 0.33, 0.67);
-  return a + b * cos(6.28318 * (c * t + d));
+// Holi gulal powder swatches — vibrant, saturated, never cyan-only
+fn holi_powder(i: f32) -> vec3f {
+  let k = i32(floor(i)) % 7;
+  // gulabi, kesar, hali, hari, neela/violet, laal, fuchsia
+  if (k == 0) { return vec3f(0.98, 0.18, 0.62); } // gulabi pink
+  if (k == 1) { return vec3f(1.00, 0.48, 0.08); } // kesar saffron
+  if (k == 2) { return vec3f(0.98, 0.86, 0.12); } // haldi yellow
+  if (k == 3) { return vec3f(0.18, 0.88, 0.32); } // hari green
+  if (k == 4) { return vec3f(0.28, 0.38, 1.00); } // neela electric blue
+  if (k == 5) { return vec3f(0.95, 0.12, 0.18); } // laal red
+  return vec3f(0.92, 0.10, 0.88);                 // fuchsia / violet
 }
 
-// Theme only tints / biases the full spectrum — never collapses to one hue family
+// Smooth multi-powder ramp — several Holi colors visible at once
+fn rainbow(t: f32) -> vec3f {
+  let x = fract(t + u.seed * 0.017);
+  let n = x * 7.0;
+  let i = floor(n);
+  let f = fract(n);
+  let s = f * f * (3.0 - 2.0 * f);
+  let a = holi_powder(i);
+  let b = holi_powder(i + 1.0);
+  // Soft lift so powders glow without washing to white
+  return mix(a, b, s) * 0.92 + vec3f(0.04, 0.02, 0.03);
+}
+
+// Theme = Holi powder mix bias — still keeps multiple gulal hues on screen
 fn palette_theme(t: f32, theme: f32) -> vec3f {
-  // Primary + two phase-shifted lobes → simultaneous rainbow bands
-  var col = rainbow(t) * 0.52
-    + rainbow(t + 0.28) * 0.28
-    + rainbow(t + 0.55) * 0.20;
+  var col = rainbow(t) * 0.48
+    + rainbow(t + 0.31) * 0.30
+    + rainbow(t + 0.58) * 0.22;
 
   let th = floor(theme + 0.5);
-  // Soft bias (not a replacement) so themes still feel distinct
   var bias = vec3f(1.0);
+  var accent = 0.0;
   if (th < 0.5) {
-    bias = vec3f(0.95, 1.05, 1.15); // ribbon — lean cyan/violet
+    // gulabi — pink / fuchsia / violet
+    bias = vec3f(1.12, 0.82, 1.08);
+    accent = 0.05;
   } else if (th < 1.5) {
-    bias = vec3f(1.15, 0.90, 1.10); // gothic — lean magenta/ember
+    // laal — red / magenta / saffron ember
+    bias = vec3f(1.18, 0.78, 0.88);
+    accent = 0.72;
   } else if (th < 2.5) {
-    bias = vec3f(1.12, 1.05, 0.88); // bloom — lean gold/rose
+    // kesar — saffron / hali / warm rose
+    bias = vec3f(1.14, 1.02, 0.72);
+    accent = 0.22;
   } else if (th < 3.5) {
-    bias = vec3f(0.90, 1.15, 1.00); // spiral — lean teal/lime
+    // hari — green / yellow / teal-lime gulal
+    bias = vec3f(0.78, 1.16, 0.88);
+    accent = 0.42;
   } else if (th < 4.5) {
-    bias = vec3f(1.15, 0.95, 0.95); // heart — lean coral
+    // rang — full Holi riot (pink / yellow / green / blue)
+    bias = vec3f(1.06, 0.98, 1.04);
+    accent = 0.0;
   } else {
-    bias = vec3f(0.95, 1.00, 1.15); // curl — lean blue/amber via mix below
+    // neela — electric blue / violet / fuchsia
+    bias = vec3f(0.82, 0.88, 1.20);
+    accent = 0.58;
   }
 
   col *= bias;
-  // Keep a secondary opposite-spectrum sparkle so yellow/green stay present
-  col += rainbow(t * 1.7 + theme * 0.15 + 0.4) * 0.22;
+  col += rainbow(t * 1.55 + accent + theme * 0.12) * 0.20;
+  // Soft channel ceiling before additive stack — keeps powder hue at peaks
+  col = col / (1.0 + max(col - vec3f(0.95), vec3f(0.0)) * 1.4);
   return max(col, vec3f(0.0));
 }
 
@@ -277,36 +305,45 @@ fn morph_variations(p: vec2f, t: f32) -> vec2f {
 
 fn glow_ring(d: f32, width: f32, sharpness: f32) -> f32 {
   let g = sharpness / max(abs(d), 1e-4);
-  return min(g, 12.0) * width;
+  // Tight peak so additive layers stay neon, not white
+  return min(g, 5.5) * width;
 }
 
-// Classic demoscene tunnel UVs (Shadertoy 4djBRm / 4rknova style)
-// t = (angle/π, 1/radius), scroll in depth
+// Luminance-weighted filmic remap — compresses brightness, preserves Holi hue
+fn filmic_holi(c: vec3f) -> vec3f {
+  let luma = max(dot(c, vec3f(0.2126, 0.7152, 0.0722)), 1e-4);
+  // Stronger knee than per-channel Reinhard — peaks stay colorful
+  let mapped = luma * (1.05 / (1.0 + luma * 0.85));
+  var out = c * (mapped / luma);
+  // Soft per-channel shoulder so no channel races to 1 alone
+  out = out / (1.0 + max(out - vec3f(0.72), vec3f(0.0)) * 2.4);
+  return out;
+}
+
+// Classic demoscene tunnel UVs — large corridors (low spatial frequency)
 fn tunnel_uv(p: vec2f, t: f32) -> vec2f {
   let ang = atan2(p.x, p.y) / 3.14159265;
-  let depth = 1.0 / max(length(p), 0.06);
-  return vec2f(ang * 1.5, depth * 0.55) + t * vec2f(0.08, 0.85);
+  let depth = 1.0 / max(length(p), 0.10);
+  return vec2f(ang * 0.85, depth * 0.28) + t * vec2f(0.05, 0.42);
 }
 
-// Hybrid kaleidoscope tunnel (tfBXzD / NflSD8-inspired infinite folds):
-// fold → 1/r depth → nested kaleido along depth for recursive corridor
+// Hybrid kaleidoscope tunnel — bigger slabs, fewer nested folds
 fn hybrid_tunnel_space(p: vec2f, segments: f32, t: f32) -> vec2f {
   var q = kaleido(p, segments);
-  q = rotate2(q, t * 0.12);
+  q = rotate2(q, t * 0.08);
   let ang0 = atan2(q.y, q.x);
-  let depth = 1.0 / max(length(q), 0.05);
-  let tz = depth + t * 1.15;
+  let depth = 1.0 / max(length(q), 0.09);
+  let tz = depth + t * 0.65;
 
-  // Depth-dependent mirror count (NflSD8 infinite-tunnel feel, still cheap)
-  let segs2 = max(segments + 2.0 * sin(tz * 0.25), 3.0);
-  var a = ang0 + 0.55 * sin(tz * 0.35 + t * 0.4);
+  let segs2 = max(segments + 1.0 * sin(tz * 0.14), 3.0);
+  var a = ang0 + 0.28 * sin(tz * 0.18 + t * 0.25);
   let slice = 6.28318530718 / segs2;
   a = a - slice * floor(a / slice);
   a = abs(a - slice * 0.5);
 
-  // Second nested fold in depth slabs
-  var cell = vec2f(a / 3.14159265 * 2.2, fract(tz * 0.35) - 0.5);
-  cell = kaleido(cell, max(segments * 0.5, 3.0));
+  // Coarse depth cells — avoid micro-tiling
+  var cell = vec2f(a / 3.14159265 * 1.15, fract(tz * 0.18) - 0.5);
+  cell = kaleido(cell, max(segments * 0.4, 3.0));
   return cell;
 }
 
@@ -315,65 +352,59 @@ fn space_for_mode(p: vec2f, mode: f32, segments: f32, t: f32) -> vec2f {
   if (lo < 0.5) {
     return kaleido(p, segments);
   } else if (lo < 1.5) {
-    // Classic polar tunnel (4djBRm)
     let tuv = tunnel_uv(p, t);
     return vec2f(fract(tuv.x) - 0.5, fract(tuv.y) - 0.5);
   }
-  // Hybrid infinite kaleido-tunnel
   let huv = hybrid_tunnel_space(p, segments, t);
   return vec2f(fract(huv.x + 0.5) - 0.5, fract(huv.y + 0.5) - 0.5);
 }
 
-// Episodic ring field: quiet / sparse pulse / multi-circle storm
+// Episodic ring field — few, thick, large rings (not micro-circles)
 fn ring_field(d0: f32, t: f32, theme: f32, amount: f32) -> f32 {
   if (amount < 0.04) {
     return 0.0;
   }
 
   var g = 0.0;
-  // Sparse: one slow breathing ring
   let sparse = amount * smoothstep(0.0, 0.7, amount);
-  var d1 = d0 - (0.22 + 0.12 * sin(t * 0.55 + theme));
-  d1 = abs(sin(d1 * 6.0 - t * 0.9)) / 6.0;
-  g += glow_ring(d1, sparse, 0.014) * 0.85;
+  var d1 = d0 - (0.32 + 0.16 * sin(t * 0.4 + theme));
+  d1 = abs(sin(d1 * 2.4 - t * 0.55)) / 2.4;
+  g += glow_ring(d1, sparse * 1.35, 0.028) * 0.7;
 
-  // Storm: many simultaneous concentric frequencies
+  // Storm: only 2 low-frequency thick rings
   let storm = smoothstep(0.85, 1.6, amount);
   if (storm > 0.0) {
-    let freqs = array<f32, 4>(11.0, 17.0, 23.0, 31.0);
-    let speeds = array<f32, 4>(1.1, -0.7, 1.6, -1.3);
-    for (var k = 0; k < 4; k = k + 1) {
-      var dk = sin(d0 * freqs[k] + t * speeds[k] + theme * 0.4 + f32(k)) / freqs[k];
-      g += glow_ring(dk, storm * (0.55 - f32(k) * 0.08), 0.010 + f32(k) * 0.002);
+    let freqs = array<f32, 2>(4.5, 7.0);
+    let speeds = array<f32, 2>(0.7, -0.45);
+    for (var k = 0; k < 2; k = k + 1) {
+      var dk = sin(d0 * freqs[k] + t * speeds[k] + theme * 0.3 + f32(k)) / freqs[k];
+      g += glow_ring(dk, storm * (0.85 - f32(k) * 0.2), 0.022 + f32(k) * 0.004) * 0.75;
     }
   }
   return g;
 }
 
-// Tunnel wall ribs / depth rings (cheap, no raymarch)
+// Tunnel wall ribs — thick, sparse depth bands
 fn tunnel_structure(p: vec2f, t: f32, theme: f32, layout_w: f32) -> f32 {
-  // Only contribute when layout leans tunnel/hybrid
   let w = smoothstep(0.15, 0.75, layout_w);
   if (w < 0.01) {
     return 0.0;
   }
 
-  let r = max(length(p), 0.04);
+  let r = max(length(p), 0.06);
   let ang = atan2(p.y, p.x);
-  let depth = 1.0 / r + t * 1.2;
+  let depth = 1.0 / r + t * 0.7;
 
-  // Depth rings flying past
-  var rings = abs(sin(depth * 2.4 - t * 0.5));
-  rings = pow(1.0 - rings, 8.0);
+  var rings = abs(sin(depth * 1.15 - t * 0.32));
+  rings = pow(1.0 - rings, 4.5);
 
-  // Angular lanes (sheep "pie"/fan feel)
-  var lanes = abs(sin(ang * mix(u.mirrors_a, u.mirrors_b, u.mirror_mix) + depth * 0.4));
-  lanes = pow(1.0 - lanes, 14.0);
+  let segs = max(mix(u.mirrors_a, u.mirrors_b, u.mirror_mix) * 0.55, 2.5);
+  var lanes = abs(sin(ang * segs + depth * 0.22));
+  lanes = pow(1.0 - lanes, 6.0);
 
-  // Soft cylindrical wall emphasis
-  let wall = smoothstep(0.03, 0.2, r) * (1.0 - smoothstep(0.95, 1.55, r));
+  let wall = smoothstep(0.05, 0.28, r) * (1.0 - smoothstep(1.05, 1.7, r));
 
-  return (rings * 0.9 + lanes * 1.1 + rings * lanes * 0.6) * wall * w;
+  return (rings * 1.0 + lanes * 0.85 + rings * lanes * 0.35) * wall * w;
 }
 
 @fragment
@@ -382,81 +413,89 @@ fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
   let t = u.time;
   let theme = mix(u.theme_a, u.theme_b, u.theme_mix);
   let segments = mix(u.mirrors_a, u.mirrors_b, u.mirror_mix);
-  // 0 kaleido / 1 tunnel / 2 hybrid — avoid WGSL reserved word `layout`
   let mode = mix(u.layout_a, u.layout_b, u.layout_mix);
   let layout_w = mode;
 
   var uv = (uv_in * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
   let uv0 = uv;
 
+  // Strong mouse parallax / orbit / swirl — clearly readable motion
   let m = (u.mouse * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
-  uv += m * 0.07 * sin(t * 0.35);
+  let mlen = length(m);
+  uv += m * 0.32;
+  uv = rotate2(uv, m.x * 0.55 + m.y * 0.22 + mlen * 0.18);
+  uv += rotate2(m, t * 0.4) * 0.10 * sin(t * 0.55 + mlen);
 
-  let rot = t * (0.06 + theme * 0.012);
+  let rot = t * (0.045 + theme * 0.01);
   uv = rotate2(uv, rot);
 
-  // Pre-fold mirrors (shared by all modes)
   let ua = kaleido(uv, u.mirrors_a);
   let ub = kaleido(uv, u.mirrors_b);
   var folded = mix(ua, ub, u.mirror_mix);
 
-  // Mode spaces morph (kaleido ↔ tunnel ↔ hybrid)
+  // Mouse also warps the folded domain so patterns swirl under the cursor
+  folded = rotate2(folded, m.x * 0.35 - m.y * 0.2);
+  folded += m.yx * vec2f(-0.14, 0.14);
+
   let space_a = space_for_mode(folded, u.layout_a, u.mirrors_a, t);
   let space_b = space_for_mode(folded, u.layout_b, u.mirrors_b, t);
   var p = mix(space_a, space_b, u.layout_mix);
 
-  p = morph_variations(p * (0.82 + 0.18 * sin(t * 0.13 + theme)), t);
+  // Larger domain into warps → bigger features
+  p = morph_variations(p * (0.52 + 0.10 * sin(t * 0.11 + theme)), t);
+  p += m * 0.08;
 
   var final_color = vec3f(0.0);
   var q = p;
 
-  // Fractal fold — filaments always on; circles gated by ring_amount
-  for (var i = 0; i < 3; i = i + 1) {
-    q = fract(q * 2.0) - 0.5;
+  // 2 coarse folds (was 3×2.0) — big ribbons, not micro-tiling
+  for (var i = 0; i < 2; i = i + 1) {
+    q = fract(q * 1.35) - 0.5;
 
     let fi = f32(i);
     let d0 = length(q);
-    // Per-layer hue offsets so RGB bands stack into a full rainbow
-    let hue = length(uv0) + t * 0.32 + fi * 0.37 + u.seed * 0.1 + atan2(q.y, q.x) * 0.08;
+    let hue = length(uv0) * 0.55 + t * 0.22 + fi * 0.45 + u.seed * 0.1 + atan2(q.y, q.x) * 0.05;
     let col = palette(hue);
 
-    // Base filament: soft distance glow (sheep ribbon, not concentric circles)
-    var filament = glow_ring(abs(q.x * q.y) * 2.2 - 0.04 * sin(t + fi), 0.55, 0.012);
-    filament += glow_ring(abs(sin(q.x * 8.0 + t) * cos(q.y * 8.0 - t * 0.7)) * 0.12, 0.35, 0.01);
+    // Thick, low-frequency filaments
+    var filament = glow_ring(abs(q.x * q.y) * 1.15 - 0.06 * sin(t * 0.7 + fi), 0.95, 0.028);
+    filament += glow_ring(
+      abs(sin(q.x * 3.2 + t * 0.6) * cos(q.y * 3.0 - t * 0.45)) * 0.22,
+      0.55,
+      0.022
+    );
 
-    // Circles: episodic — quiet, sparse, or storm
-    let circles = ring_field(d0, t + fi * 0.7, theme, u.ring_amount);
+    let circles = ring_field(d0, t + fi * 0.5, theme, u.ring_amount) * 0.85;
 
-    let fall = exp(-d0 * (1.35 + 0.1 * theme));
-    final_color += col * (filament * 0.75 + circles) * (0.5 + 0.5 * fall);
+    let fall = exp(-d0 * (0.85 + 0.08 * theme));
+    let layer_w = select(1.0, 0.55, i == 1); // second fold softer
+    final_color += col * (filament * 0.62 + circles) * (0.55 + 0.45 * fall) * layer_w;
 
-    // Cheap spectral sparkle on bright filaments (no extra loops)
-    final_color += rainbow(hue + 0.5) * filament * 0.18 * fall;
+    // Soft Holi sparkle — low weight so it doesn't stack to white
+    final_color += rainbow(hue + 0.35) * filament * 0.08 * fall * layer_w;
   }
 
-  // Tunnel ribs / depth rings — rainbow-shifted along depth
-  let tun = tunnel_structure(uv0 * (0.9 + 0.15 * sin(t * 0.2)), t, theme, layout_w);
-  let tun_hue = 1.0 / max(length(uv0), 0.08) * 0.08 + t * 0.2;
-  final_color += (palette(tun_hue) * 0.65 + rainbow(tun_hue + 0.35) * 0.35) * tun * 1.35;
+  let tun = tunnel_structure(uv0 * (0.75 + 0.1 * sin(t * 0.15)), t, theme, layout_w);
+  let tun_hue = 1.0 / max(length(uv0), 0.12) * 0.05 + t * 0.14;
+  final_color += (palette(tun_hue) * 0.7 + rainbow(tun_hue + 0.28) * 0.3) * tun * 0.85;
 
-  // Occasional outer halo only during ring storms
   let storm = smoothstep(1.0, 1.7, u.ring_amount);
   if (storm > 0.0) {
-    var od = length(uv0) - (0.45 + 0.2 * sin(t * 0.7));
-    od = abs(sin(od * 9.0 - t * 1.4)) / 9.0;
-    final_color += palette(t * 0.15) * glow_ring(od, storm, 0.011) * 0.7;
+    var od = length(uv0) - (0.55 + 0.22 * sin(t * 0.5));
+    od = abs(sin(od * 4.0 - t * 0.8)) / 4.0;
+    final_color += palette(t * 0.12) * glow_ring(od, storm * 1.2, 0.024) * 0.45;
   }
 
-  // Vanishing-point bloom for tunnel layouts
   let tunnel_bloom = smoothstep(0.4, 1.2, layout_w);
-  final_color += palette(t * 0.08 + 0.5) * (0.04 / (length(uv0) + 0.08)) * tunnel_bloom;
+  final_color += palette(t * 0.07 + 0.5) * (0.025 / (length(uv0) + 0.12)) * tunnel_bloom;
 
   final_color *= u.intensity;
-  final_color = final_color / (1.0 + final_color * 0.35);
-  final_color = pow(clamp(final_color, vec3f(0.0), vec3f(1.0)), vec3f(0.92));
+  final_color = filmic_holi(final_color);
+  final_color = pow(clamp(final_color, vec3f(0.0), vec3f(1.0)), vec3f(0.95));
 
-  let pedestal = mix(vec3f(0.004, 0.006, 0.018), vec3f(0.012, 0.004, 0.010), theme / 5.0);
-  final_color = pedestal + final_color;
+  // Warm Holi night pedestal (magenta/ember, not cyan)
+  let pedestal = mix(vec3f(0.012, 0.004, 0.010), vec3f(0.008, 0.005, 0.018), theme / 5.0);
+  final_color = pedestal + final_color * 0.97;
 
   return vec4f(final_color, 1.0);
 }
