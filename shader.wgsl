@@ -59,8 +59,18 @@ fn holi_powder(i: f32) -> vec3f {
   return vec3f(0.92, 0.10, 0.88);                 // fuchsia / violet
 }
 
+// Mouse → Holi color cycle (not pan). X+Y drive palette phase + theme bias mix.
+fn mouse_color_phase() -> f32 {
+  return fract(u.mouse.x * 0.92 + u.mouse.y * 0.48 + u.mouse.x * u.mouse.y * 0.15);
+}
+
+fn mouse_theme_mix(theme: f32) -> f32 {
+  // Smoothly walk theme bias across powders while keeping pinned theme as anchor
+  return theme + mouse_color_phase() * 5.0;
+}
+
 fn rainbow(t: f32) -> vec3f {
-  let x = fract(t + u.seed * 0.017);
+  let x = fract(t + u.seed * 0.017 + mouse_color_phase());
   let n = x * 7.0;
   let i = floor(n);
   let f = fract(n);
@@ -73,14 +83,17 @@ fn rainbow(t: f32) -> vec3f {
 
 fn palette_theme(t: f32, theme: f32) -> vec3f {
   // Always a multi-powder Holi rainbow — never monochrome.
-  // "rang" (full riot) is the base; pinned themes only nudge the bias.
-  var col = rainbow(t) * 0.34
-    + rainbow(t + 0.14) * 0.22
-    + rainbow(t + 0.33) * 0.18
-    + rainbow(t + 0.52) * 0.14
-    + rainbow(t + 0.71) * 0.12;
+  // Mouse phase shifts hue lanes; pinned themes still nudge bias.
+  let phase = mouse_color_phase();
+  let tt = t + phase;
+  let theme_m = mouse_theme_mix(theme);
+  var col = rainbow(tt) * 0.34
+    + rainbow(tt + 0.14) * 0.22
+    + rainbow(tt + 0.33) * 0.18
+    + rainbow(tt + 0.52) * 0.14
+    + rainbow(tt + 0.71) * 0.12;
 
-  let th = floor(theme + 0.5);
+  let th = mod1(floor(theme_m + 0.5), 6.0);
   var bias = vec3f(1.08, 1.02, 1.06); // rang-like default
   var accent = 0.0;
   if (th < 0.5) {
@@ -106,9 +119,9 @@ fn palette_theme(t: f32, theme: f32) -> vec3f {
 
   col *= bias;
   // Extra gulal lanes so every theme stays a riot
-  col += rainbow(t * 1.7 + accent) * 0.28;
-  col += rainbow(t * 0.55 + 0.41 + theme * 0.09) * 0.18;
-  col += holi_powder(floor(t * 7.0 + theme + 2.0)) * 0.10;
+  col += rainbow(tt * 1.7 + accent) * 0.28;
+  col += rainbow(tt * 0.55 + 0.41 + theme_m * 0.09) * 0.18;
+  col += holi_powder(floor(tt * 7.0 + theme_m + 2.0)) * 0.10;
   // Soft channel ceiling — vivid powder, not whiteout
   col = col / (1.0 + max(col - vec3f(0.92), vec3f(0.0)) * 1.55);
   return max(col, vec3f(0.0));
@@ -397,12 +410,8 @@ fn flock_effect(uv_in: vec2f) -> vec3f {
 
   var p = (uv_in * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
 
-  // kscope mouse parallax (adaptation)
-  let m = (u.mouse * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
-  p += m * 0.22;
-  p = rotate2(p, m.x * 0.2 + m.y * 0.1);
-
   // Original Lissajous drift across the infinite hex field
+  // (Mouse drives Holi color cycle globally — not pan/orbit.)
   let a = TAU * t / 300.0;
   p += 10.0 * vec2f(sin(a), sin(sqrt(0.5) * a));
 
@@ -460,10 +469,7 @@ fn truchet_effect(uv_in: vec2f) -> vec3f {
   let res = u.resolution;
   let t = u.time;
   var p = (uv_in * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
-
-  let m = (u.mouse * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
-  p += m * 0.3;
-  p = rotate2(p, t * 0.05 + m.x * 0.4);
+  p = rotate2(p, t * 0.05);
 
   // Smooth polar fold first (kaleido wedge), then cell Truchet in folded space
   let segs = max(u.mirrors, 3.0);
@@ -541,15 +547,9 @@ fn quality_steps(base: i32, hi: i32) -> i32 {
   return select(base, hi, u.quality > 0.5);
 }
 
-fn mouse_aspect() -> vec2f {
-  return (u.mouse * 2.0 - 1.0) * vec2f(u.resolution.x / max(u.resolution.y, 1.0), 1.0);
-}
-
 fn screen_p(uv_in: vec2f) -> vec2f {
-  var p = (uv_in * 2.0 - 1.0) * vec2f(u.resolution.x / max(u.resolution.y, 1.0), 1.0);
-  let m = mouse_aspect();
-  p += m * 0.2;
-  return p;
+  // Aspect-correct screen coords — no mouse pan/parallax (mouse → color only)
+  return (uv_in * 2.0 - 1.0) * vec2f(u.resolution.x / max(u.resolution.y, 1.0), 1.0);
 }
 
 // ---- 2 Star Nest — MIT, Pablo Roman Andrioli (Kali) ----
@@ -579,9 +579,9 @@ fn starnest_effect(uv_in: vec2f) -> vec3f {
   var dir = vec3f(uv * zoom, 1.0);
   let time = u.time * speed + 0.25;
 
-  // mouse rotation — u.mouse is already 0..1 (matches iMouse.xy/iResolution.xy)
-  let a1 = 0.5 + u.mouse.x * 2.0;
-  let a2 = 0.8 + u.mouse.y * 2.0;
+  // Slow auto orbit (mouse reserved for Holi color cycle)
+  let a1 = 0.9 + 0.15 * sin(u.time * 0.07);
+  let a2 = 1.0 + 0.12 * cos(u.time * 0.05);
   dir = rot_xz(dir, a1);
   dir = rot_xy(dir, a2);
   var origin = vec3f(1.0, 0.5, 0.5);
@@ -767,7 +767,7 @@ fn eel_core(uv_in: vec2f, audio: f32) -> vec3f {
   let speed = 1.5 + audio * 3.5;
   let tm = speed * t + 12.3;
   var ro = vec3f(select(0.0, 1.0, audio > 0.05), 0.0, tm);
-  var dro = normalize(vec3f(1.0, 0.0, 3.0) + vec3f(mouse_aspect() * vec2f(0.5), u.mirrors * 0.02));
+  var dro = normalize(vec3f(1.0, 0.0, 3.0) + vec3f(0.0, 0.0, u.mirrors * 0.02));
   dro = rot_xz(dro, 0.2 * sin(0.05 * tm));
   dro = rot_yz(dro, 0.2 * sin(0.05 * tm * sqrt(0.5)));
   let ww = normalize(dro);
@@ -841,9 +841,9 @@ fn reflect_effect(uv_in: vec2f) -> vec3f {
   var p = screen_p(uv_in);
   let steps = quality_steps(24, 40);
   var ro = vec3f(0.0, 0.15, -2.6);
-  ro = rot_xz(ro, t * 0.15 + mouse_aspect().x);
+  ro = rot_xz(ro, t * 0.15);
   var rd = normalize(vec3f(p, 1.6));
-  rd = rot_xz(rd, t * 0.15 + mouse_aspect().x);
+  rd = rot_xz(rd, t * 0.15);
 
   var col = vec3f(0.0);
   var atten = 1.0;
@@ -901,7 +901,7 @@ fn bubble_effect(uv_in: vec2f) -> vec3f {
   let steps = quality_steps(28, 48);
   var ro = vec3f(0.0, 0.0, t * 0.8);
   var rd = normalize(vec3f(p, 1.4));
-  rd = rot_xy(rd, mouse_aspect().x * 0.4);
+  rd = rot_xy(rd, 0.12 * sin(t * 0.2));
 
   var col = vec3f(0.0);
   var travel = 0.0;
@@ -1039,11 +1039,8 @@ fn neonwave_effect(uv_in: vec2f) -> vec3f {
   var p = screen_p(uv_in);
   var ro = vec3f(0.0, 0.0, t);
   var dro = normalize(vec3f(0.0, 0.09, 1.0));
-  let m = mouse_aspect();
-  dro = rot_yz(dro, -m.y * 0.35);
-  dro = rot_xz(dro, -m.x * 0.35);
-  ro = rot_yz(ro, -m.y * 0.15);
-  ro = rot_xz(ro, -m.x * 0.15);
+  dro = rot_yz(dro, 0.04 * sin(u.time * 0.11));
+  dro = rot_xz(dro, 0.05 * cos(u.time * 0.09));
   let ww = normalize(dro);
   let uu = normalize(cross(vec3f(0.0, 1.0, 0.0), ww));
   let vv = cross(ww, uu);
@@ -1173,13 +1170,12 @@ fn mandelbulb_de(p: vec3f, power: f32, loops: i32) -> f32 {
 fn mandelbulb_effect(uv_in: vec2f) -> vec3f {
   let t = u.time;
   var p = screen_p(uv_in);
-  let m = mouse_aspect();
   var ro = vec3f(0.0, 0.0, -2.8);
   var rd = normalize(vec3f(p, 1.7));
-  let ang = t * 0.18 + m.x;
+  let ang = t * 0.18;
   ro = rot_xz(ro, ang);
   rd = rot_xz(rd, ang);
-  rd = rot_yz(rd, m.y * 0.4);
+  rd = rot_yz(rd, 0.15 * sin(t * 0.13));
   let loops = quality_steps(6, 9);
   let power = 7.0 + 1.5 * sin(t * 0.2);
   var travel = 0.0;
@@ -1230,7 +1226,6 @@ fn twinkle_tun_effect(uv_in: vec2f) -> vec3f {
   let T = u.time;
   let C = uv_in * u.resolution;
   let r = u.resolution;
-  let m = u.mouse - 0.5;
   var o = vec3f(0.0);
   var z = 0.0;
   var d = 0.0;
@@ -1246,11 +1241,11 @@ fn twinkle_tun_effect(uv_in: vec2f) -> vec3f {
     q.y = abs(s);
     var p = q;
     p.y -= 0.11;
-    // rotate xy
-    let ang = 11.0 * 0.0 - 2.0 * p.z; // U.z term ~0 with Holi path
-    let ca = cos(ang + m.x);
-    let sa = sin(ang + m.y * 3.0);
-    let xy = vec2f(p.x + m.x * 0.3, p.y + m.y * 0.3);
+    // rotate xy (time only — mouse is Holi color)
+    let ang = -2.0 * p.z;
+    let ca = cos(ang);
+    let sa = sin(ang);
+    let xy = p.xy;
     p = vec4f(ca * xy.x - sa * xy.y, sa * xy.x + ca * xy.y, p.z, p.w);
     p.y -= 0.2;
     d = abs(gyroid4(p, 8.0) - gyroid4(p, 18.0)) / 7.0;
@@ -1335,13 +1330,12 @@ fn clearly_bug_effect(uv_in: vec2f) -> vec3f {
   let t = u.time;
   let C = uv_in * u.resolution;
   let r = u.resolution;
-  let m = (u.mouse - 0.5) * r;
   var o = vec3f(0.0);
   var z = fract(dot(C, sin(C))) - 0.5;
   let steps = quality_steps(48, 72);
   for (var i = 1.0; i < 80.0; i += 1.0) {
     if (i32(i) > steps) { break; }
-    var p = vec4f(z * normalize(vec3f((C + m) - 0.5 * r, r.y)), 0.1 * t);
+    var p = vec4f(z * normalize(vec3f(C - 0.5 * r, r.y)), 0.1 * t);
     p.z += t;
     let O = p;
     // Intentional “bug” rotations from the CC0 mini-shader
