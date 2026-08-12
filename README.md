@@ -48,7 +48,7 @@ Heavy layouts (`starnest`, `reflect`, `bubble`, eels, `mandelbulb`, tunnels) use
 
 | Input | Action |
 | --- | --- |
-| Mouse | Parallax / orbit |
+| Mouse move | **Holi color cycle** (palette / powder phase — not pan/orbit) |
 | Click | **Next effect** dual fade (same as `T` — not color remix) |
 | `0` | Auto Holi themes (rang-heavy) |
 | `1`–`6` | Pin Holi bias / color (still multi-hue) |
