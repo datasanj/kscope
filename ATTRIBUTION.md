@@ -29,7 +29,7 @@ Original WGSL inspired by the *idea* of [7lKSWW](https://www.shadertoy.com/view/
 
 | Layout (HUD) | Title | URL | License / author | Source used |
 | --- | --- | --- | --- | --- |
-| `starnest` | Star Nest | https://www.shadertoy.com/view/XlfGRj | **MIT** — Pablo Roman Andrioli (Kali) | `nabeel-oz/glsl-to-mp4` `references/StarNest.md` + `generators/star_nest.py` — Holi remapped |
+| `starnest` | Star Nest | https://www.shadertoy.com/view/XlfGRj | **MIT** — Pablo Roman Andrioli (Kali) | **Prefer in-repo** [`references/StarNest.md`](./references/StarNest.md) (copied from [`nabeel-oz/glsl-to-mp4`](https://github.com/nabeel-oz/glsl-to-mp4) `references/StarNest.md`). Header: `// Star Nest by Pablo Roman Andrioli` / `// License: MIT` + full Image-pass GLSL. **Do not fetch from Shadertoy.com.** WGSL port keeps the MIT volume; Holi remap is a kscope post step. |
 | `golden` | Golden apollian | https://www.shadertoy.com/view/WlcfRS | **CC0** — mrange | Apollonian DE family adapted with φ-scale + Holi/golden bias (full Image listing not in mirrors; technique aligned with secured Apollian-with-a-twist) |
 | `logspiral` | Logarithmic spiral of spheres | https://www.shadertoy.com/view/msGXRD | **CC0** — mrange | Holi log-polar sphere packing inspired by the CC0 title (mirror Image listing unavailable; original WGSL adaptation) |
 | `apollo` | Apollian with a twist | https://www.shadertoy.com/view/Wl3fzM | **CC0** — mrange | Shaderfuse `ApollianWithATwist.fuse` kernel → WGSL + Holi |

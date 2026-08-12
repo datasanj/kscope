@@ -12,7 +12,7 @@ Fragment-only sheep; dual-texture transitions only while morphing; no IFS histog
 | --- | --- |
 | `flock` | Mandala flowers hex field (CC0 mrange) |
 | `truchet` | Polar-fold + Truchet cells (idea-only Holi) |
-| `starnest` | Star Nest kaliset volume (MIT Kali) → Holi |
+| `starnest` | Star Nest kaliset volume (MIT Kali; source `references/StarNest.md`) → Holi |
 | `golden` | Golden apollian (CC0 mrange) → Holi/φ |
 | `logspiral` | Log spiral of spheres (CC0 mrange) → Holi |
 | `apollo` | Apollian with a twist (CC0 mrange) |

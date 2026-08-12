@@ -546,19 +546,36 @@ fn screen_p(uv_in: vec2f) -> vec2f {
   return p;
 }
 
-// ---- 2 Star Nest (MIT, Kali / Pablo Roman Andrioli) — Holi remapped ----
-// Source: nabeel-oz/glsl-to-mp4 references/StarNest.md + generators/star_nest.py
+// ---- 2 Star Nest — MIT, Pablo Roman Andrioli (Kali) ----
+// Primary source (prefer over Shadertoy.com):
+//   references/StarNest.md  (from nabeel-oz/glsl-to-mp4)
+//   begins: // Star Nest by Pablo Roman Andrioli / // License: MIT
+//   Shadertoy URL for credit: https://www.shadertoy.com/view/XlfGRj
+// Faithful WGSL port of that Image-pass; Holi powder remap after the MIT volume.
 
 fn starnest_sheep(uv_in: vec2f) -> vec3f {
-  let t = u.time;
-  var uv = uv_in - 0.5;
+  // --- constants from StarNest.md Image pass ---
+  let iterations = quality_steps(13, 17); // original 17
+  let formuparam = 0.53;
+  let volsteps = quality_steps(14, 20);   // original 20
+  let stepsize = 0.1;
+  let zoom = 0.800;
+  let tile = 0.850;
+  let speed = 0.010;
+  let brightness = 0.0015;
+  let darkmatter = 0.300;
+  let distfading = 0.730;
+  let saturation = 0.850;
+
+  // get coords and direction (StarNest.md)
+  var uv = uv_in - vec2f(0.5);
   uv.y *= u.resolution.y / max(u.resolution.x, 1.0);
-  let zoom = 0.8;
   var dir = vec3f(uv * zoom, 1.0);
-  let time = t * 0.01 + 0.25;
-  let m = u.mouse;
-  let a1 = 0.5 + m.x * 2.0;
-  let a2 = 0.8 + m.y * 2.0;
+  let time = u.time * speed + 0.25;
+
+  // mouse rotation — u.mouse is already 0..1 (matches iMouse.xy/iResolution.xy)
+  let a1 = 0.5 + u.mouse.x * 2.0;
+  let a2 = 0.8 + u.mouse.y * 2.0;
   dir = rot_xz(dir, a1);
   dir = rot_xy(dir, a2);
   var origin = vec3f(1.0, 0.5, 0.5);
@@ -566,45 +583,44 @@ fn starnest_sheep(uv_in: vec2f) -> vec3f {
   origin = rot_xz(origin, a1);
   origin = rot_xy(origin, a2);
 
-  let volsteps = quality_steps(12, 18);
-  let iterations = quality_steps(12, 16);
-  let tile = 0.85;
-  let formuparam = 0.53;
-  let stepsize = 0.1;
-  let brightness = 0.0015;
-  let darkmatter = 0.3;
-  let distfading = 0.73;
-
+  // volumetric rendering
   var s = 0.1;
   var fade = 1.0;
   var v = vec3f(0.0);
-  for (var r = 0; r < 18; r++) {
+  for (var r = 0; r < 20; r++) {
     if (r >= volsteps) { break; }
     var p = origin + s * dir * 0.5;
+    // tiling fold — GLSL-style mod (floor-based)
     p = abs(vec3f(tile) - mod3v(p, tile * 2.0));
     var pa = 0.0;
     var a = 0.0;
-    for (var i = 0; i < 16; i++) {
+    for (var i = 0; i < 17; i++) {
       if (i >= iterations) { break; }
-      let d2 = max(dot(p, p), 1e-4);
-      p = abs(p) / d2 - formuparam;
+      // the magic formula
+      let r2 = max(dot(p, p), 1e-6);
+      p = abs(p) / r2 - formuparam;
       let lp = length(p);
-      a += abs(lp - pa);
+      a += abs(lp - pa); // absolute sum of average change
       pa = lp;
     }
-    let dm = max(0.0, darkmatter - a * a * 0.001);
-    a = a * a * a;
-    if (r > 6) { fade *= 1.0 - dm; }
+    let dm = max(0.0, darkmatter - a * a * 0.001); // dark matter
+    a = a * a * a; // add contrast
+    if (r > 6) { fade *= 1.0 - dm; } // dark matter, don't render near
     v += vec3f(fade);
-    v += vec3f(s, s * s, s * s * s * s) * a * brightness * fade;
-    fade *= distfading;
+    v += vec3f(s, s * s, s * s * s * s) * a * brightness * fade; // coloring based on distance
+    fade *= distfading; // distance fading
     s += stepsize;
   }
-  // Holi remap instead of grey saturation mix
-  let lum = length(v) * 0.01;
-  var col = palette_theme(lum * 2.2 + t * 0.05, u.theme) * lum * 2.8;
-  col += rainbow(lum * 1.5 + u.seed) * lum * 1.4;
-  col += holi_powder(floor(lum * 9.0)) * lum * 0.6;
+  // original color adjust
+  v = mix(vec3f(length(v)), v, saturation);
+  v *= 0.01;
+
+  // kscope adaptation: Holi powder remap (keep MIT volume structure)
+  let lum = max(length(v), 1e-4);
+  var col = v * 0.35;
+  col += palette_theme(lum * 3.0 + u.time * 0.04 + u.seed * 0.1, u.theme) * lum * 2.4;
+  col += rainbow(lum * 2.0 + v.x * 4.0) * lum * 1.2;
+  col += holi_powder(floor(lum * 11.0 + u.theme)) * lum * 0.55;
   return col;
 }
 
