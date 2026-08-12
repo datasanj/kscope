@@ -1,4 +1,4 @@
-// Dual-sheep transition composite — samples A/B textures and mixes with
+// Dual-effect transition composite — samples A/B textures and mixes with
 // hex takeover / polar iris / kaleido wedge / additive storm.
 
 struct CompositeUniforms {

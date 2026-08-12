@@ -52,4 +52,4 @@ From the Shaderfuse port of cdV3DW:
 
 - Dave Hoskins “Hash without Sine” — **MIT** — https://www.shadertoy.com/view/4djSRW
 - Electric Sheep / flam3 aesthetic (closed-form UV ideas only in retired classic path)
-- Dual-sheep transition composites are original to kscope
+- Dual-effect transition composites are original to kscope

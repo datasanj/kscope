@@ -1,4 +1,5 @@
-// Electric-Sheep-inspired Holi kaleidoscope — fragment-only, 4K@120 friendly.
+// Holi kaleidoscope inspired by Electric Sheep (screensaver) — fragment-only, 4K@120 friendly.
+// Units are effects (not effect).
 // Colorful layouts only (flock/truchet + 8 shippable shaders). Boring kaleido/tunnel/hybrid gone.
 // See ATTRIBUTION.md for titles, authors, URLs, licenses.
 
@@ -383,7 +384,7 @@ fn clogo(p_in: vec2f, z: f32, t: f32) -> CLogo {
   return out;
 }
 
-fn flock_sheep(uv_in: vec2f) -> vec3f {
+fn flock_effect(uv_in: vec2f) -> vec3f {
   let res = u.resolution;
   let t = u.time;
   let aa = 2.0 / max(res.y, 1.0);
@@ -450,7 +451,7 @@ fn flock_sheep(uv_in: vec2f) -> vec3f {
 // 7lKSWW (license unconfirmed for commercial paste). Holi genomes color lanes.
 // ---------------------------------------------------------------------------
 
-fn truchet_sheep(uv_in: vec2f) -> vec3f {
+fn truchet_effect(uv_in: vec2f) -> vec3f {
   let res = u.resolution;
   let t = u.time;
   var p = (uv_in * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
@@ -527,7 +528,7 @@ fn finish(col_in: vec3f) -> vec4f {
 }
 
 // ---------------------------------------------------------------------------
-// Extra colorful sheep layouts (Holi-rainbow biased). Sources / licenses in
+// Extra colorful effect layouts (Holi-rainbow biased). Sources / licenses in
 // ATTRIBUTION.md. Quality uniform: 0 = cheaper iteration caps, 1 = fuller.
 // ---------------------------------------------------------------------------
 
@@ -553,7 +554,7 @@ fn screen_p(uv_in: vec2f) -> vec2f {
 //   Shadertoy URL for credit: https://www.shadertoy.com/view/XlfGRj
 // Faithful WGSL port of that Image-pass; Holi powder remap after the MIT volume.
 
-fn starnest_sheep(uv_in: vec2f) -> vec3f {
+fn starnest_effect(uv_in: vec2f) -> vec3f {
   // --- constants from StarNest.md Image pass ---
   let iterations = quality_steps(13, 17); // original 17
   let formuparam = 0.53;
@@ -640,7 +641,7 @@ fn apollonian_de(p_in: vec4f, s: f32) -> f32 {
   return abs(p.y) / scale;
 }
 
-fn golden_sheep(uv_in: vec2f) -> vec3f {
+fn golden_effect(uv_in: vec2f) -> vec3f {
   let t = u.time;
   var p = screen_p(uv_in);
   p = rotate2(p, t * 0.08);
@@ -669,7 +670,7 @@ fn golden_sheep(uv_in: vec2f) -> vec3f {
 
 // ---- 4 Log spiral of spheres (CC0 mrange msGXRD) — Holi log-polar spheres ----
 
-fn logspiral_sheep(uv_in: vec2f) -> vec3f {
+fn logspiral_effect(uv_in: vec2f) -> vec3f {
   let t = u.time;
   var p = screen_p(uv_in);
   p = rotate2(p, t * 0.05);
@@ -695,7 +696,7 @@ fn logspiral_sheep(uv_in: vec2f) -> vec3f {
 
 // ---- 5 Apollian with a twist (CC0 mrange Wl3fzM) — from Shaderfuse kernel ----
 
-fn apollo_twist_sheep(uv_in: vec2f) -> vec3f {
+fn apollo_twist_effect(uv_in: vec2f) -> vec3f {
   let t = u.time;
   let aa = 2.0 / max(u.resolution.y, 1.0);
   var p = screen_p(uv_in);
@@ -814,13 +815,13 @@ fn eel_core(uv_in: vec2f, audio: f32) -> vec3f {
   return max(col, vec3f(0.0));
 }
 
-fn eel_sheep(uv_in: vec2f) -> vec3f {
+fn eel_effect(uv_in: vec2f) -> vec3f {
   return eel_core(uv_in, 0.0);
 }
 
 // ---- 7 Electric Eel audio fork (CC0 lineage cddSRM) — time/mic faux-reactive ----
 
-fn eelaudio_sheep(uv_in: vec2f) -> vec3f {
+fn eelaudio_effect(uv_in: vec2f) -> vec3f {
   // Prefer live audio_level; otherwise a lively faux beat so no-mic still works
   let faux = 0.55 + 0.45 * sin(u.time * 2.7) * sin(u.time * 1.3 + 1.7);
   let drive = max(u.audio_level, faux * 0.85);
@@ -830,7 +831,7 @@ fn eelaudio_sheep(uv_in: vec2f) -> vec3f {
 // ---- 8 Let's self reflect (CC0 XfyXRV) — quality-gated mirrored Holi solid ----
 // Full polyhedra+refraction port is heavy; this captures recursive mirror glow.
 
-fn reflect_sheep(uv_in: vec2f) -> vec3f {
+fn reflect_effect(uv_in: vec2f) -> vec3f {
   let t = u.time;
   var p = screen_p(uv_in);
   let steps = quality_steps(24, 40);
@@ -889,7 +890,7 @@ fn reflect_sheep(uv_in: vec2f) -> vec3f {
 
 // ---- 9 Reflective bubble tunnel (CC0 mrange wcyXzV) — Holi bubble corridor ----
 
-fn bubble_sheep(uv_in: vec2f) -> vec3f {
+fn bubble_effect(uv_in: vec2f) -> vec3f {
   let t = u.time;
   var p = screen_p(uv_in);
   let steps = quality_steps(28, 48);
@@ -943,16 +944,16 @@ fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
   let lo = i32(floor(u.layout_mode + 0.5));
   var col: vec3f;
   switch lo {
-    case 1: { col = truchet_sheep(uv_in); }
-    case 2: { col = starnest_sheep(uv_in); }
-    case 3: { col = golden_sheep(uv_in); }
-    case 4: { col = logspiral_sheep(uv_in); }
-    case 5: { col = apollo_twist_sheep(uv_in); }
-    case 6: { col = eel_sheep(uv_in); }
-    case 7: { col = eelaudio_sheep(uv_in); }
-    case 8: { col = reflect_sheep(uv_in); }
-    case 9: { col = bubble_sheep(uv_in); }
-    default: { col = flock_sheep(uv_in); }
+    case 1: { col = truchet_effect(uv_in); }
+    case 2: { col = starnest_effect(uv_in); }
+    case 3: { col = golden_effect(uv_in); }
+    case 4: { col = logspiral_effect(uv_in); }
+    case 5: { col = apollo_twist_effect(uv_in); }
+    case 6: { col = eel_effect(uv_in); }
+    case 7: { col = eelaudio_effect(uv_in); }
+    case 8: { col = reflect_effect(uv_in); }
+    case 9: { col = bubble_effect(uv_in); }
+    default: { col = flock_effect(uv_in); }
   }
   return finish(col);
 }

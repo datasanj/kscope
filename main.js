@@ -2,9 +2,9 @@ const canvas = document.getElementById("gpu");
 const statsEl = document.getElementById("stats");
 const fallback = document.getElementById("fallback");
 
-// Sheep uniforms: res(2) time seed mouse(2) theme mirrors intensity layout ring audio quality pad
-const SHEEP_FLOATS = 16;
-const SHEEP_BYTES = SHEEP_FLOATS * 4;
+// Effect uniforms: res(2) time seed mouse(2) theme mirrors intensity layout ring audio quality pad
+const EFFECT_FLOATS = 16;
+const EFFECT_BYTES = EFFECT_FLOATS * 4;
 
 // Composite: resolution(2) progress mode time seed mirrorsA mirrorsB morph pad(3)
 const COMP_FLOATS = 12;
@@ -47,7 +47,7 @@ const RING_SEQ = [1, 2, 1, 2, 0, 1, 2, 1, 2, 1, 0, 2];
 // Theme auto seq leans on rang (full Holi riot) while still visiting all powders
 const THEME_SEQ = [4, 0, 4, 1, 4, 2, 4, 3, 4, 5, 4, 0, 4, 2];
 
-/** Dual-sheep mix modes */
+/** Dual-effect mix modes */
 const MIX = {
   HEX: 0,
   IRIS: 1,
@@ -57,8 +57,8 @@ const MIX = {
 
 const MIX_NAMES = ["hex", "iris", "wedge", "storm"];
 
-const SHEEP_DWELL = 11;
-const SHEEP_FADE = 3.2;
+const EFFECT_DWELL = 11;
+const EFFECT_FADE = 3.2;
 const RING_DWELL = 6.5;
 const RING_FADE = 2.2;
 
@@ -74,10 +74,10 @@ const state = {
   frames: 0,
   fps: 0,
   fpsWindowStart: performance.now(),
-  // Current / next sheep genomes
-  sheepA: makeSheep(0),
-  sheepB: makeSheep(1),
-  sheepMix: 0,
+  // Current / next effect genomes
+  effectA: makeEffect(0),
+  effectB: makeEffect(1),
+  effectMix: 0,
   mixMode: MIX.HEX,
   pinnedMixMode: null, // null = auto pick
   ringAmount: 0,
@@ -93,7 +93,7 @@ const state = {
   mirrorIdx: 0,
 };
 
-function makeSheep(i) {
+function makeEffect(i) {
   return {
     theme: THEMES[i % THEMES.length].id,
     layout: LAYOUT_SEQ[i % LAYOUT_SEQ.length],
@@ -143,7 +143,7 @@ function updateRingAmount(time) {
   state.ringAmount = Math.max(0, amount);
 }
 
-function buildSheepFromIndices(themeId, layoutId, mirrorId, seed) {
+function buildEffectFromIndices(themeId, layoutId, mirrorId, seed) {
   return {
     theme: themeId,
     layout: layoutId,
@@ -155,11 +155,11 @@ function buildSheepFromIndices(themeId, layoutId, mirrorId, seed) {
 function updateGenome(dt) {
   if (!state.paused) state.time += dt;
 
-  const cycle = SHEEP_DWELL + SHEEP_FADE;
+  const cycle = EFFECT_DWELL + EFFECT_FADE;
   const t = state.time + state.seed;
   const idx = Math.floor(t / cycle);
   const local = t - idx * cycle;
-  const mix = local <= SHEEP_DWELL ? 0 : smoothstep(0, SHEEP_FADE, local - SHEEP_DWELL);
+  const mix = local <= EFFECT_DWELL ? 0 : smoothstep(0, EFFECT_FADE, local - EFFECT_DWELL);
 
   // Stable per-slot genomes — rang-heavy Holi sequence in auto mode
   const themeA = state.autoTheme
@@ -174,53 +174,53 @@ function updateGenome(dt) {
   const mirrorsA = MIRROR_SEQ[idx % MIRROR_SEQ.length];
   const mirrorsB = MIRROR_SEQ[(idx + 1) % MIRROR_SEQ.length];
 
-  // Seed drifts per sheep slot so remixed flocks differ
+  // Seed drifts per effect slot so remixed layouts differ
   const seedA = state.seed + idx * 1.618;
   const seedB = state.seed + (idx + 1) * 1.618;
 
-  state.sheepA = buildSheepFromIndices(themeA, layoutA, mirrorsA, seedA);
-  state.sheepB = buildSheepFromIndices(themeB, layoutB, mirrorsB, seedB);
-  state.sheepMix = state.autoTheme || layoutA !== layoutB || mirrorsA !== mirrorsB ? mix : 0;
+  state.effectA = buildEffectFromIndices(themeA, layoutA, mirrorsA, seedA);
+  state.effectB = buildEffectFromIndices(themeB, layoutB, mirrorsB, seedB);
+  state.effectMix = state.autoTheme || layoutA !== layoutB || mirrorsA !== mirrorsB ? mix : 0;
   // When theme pinned, still allow layout dual transitions
   if (!state.autoTheme) {
-    state.sheepA.theme = state.pinnedTheme;
-    state.sheepB.theme = state.pinnedTheme;
+    state.effectA.theme = state.pinnedTheme;
+    state.effectB.theme = state.pinnedTheme;
   }
 
-  state.mixMode = pickMixMode(state.sheepA.layout, state.sheepB.layout);
+  state.mixMode = pickMixMode(state.effectA.layout, state.effectB.layout);
   state.layoutIdx = idx;
   updateRingAmount(state.time);
 }
 
 function themeLabel() {
-  const a = THEMES[state.sheepA.theme]?.name ?? "?";
-  const b = THEMES[state.sheepB.theme]?.name ?? "?";
+  const a = THEMES[state.effectA.theme]?.name ?? "?";
+  const b = THEMES[state.effectB.theme]?.name ?? "?";
   if (!state.autoTheme) return a;
-  if (state.sheepMix < 0.02) return a;
-  if (state.sheepMix > 0.98) return b;
+  if (state.effectMix < 0.02) return a;
+  if (state.effectMix > 0.98) return b;
   return `${a}→${b}`;
 }
 
 function mirrorsLabel() {
-  const a = state.sheepA.mirrors;
-  const b = state.sheepB.mirrors;
+  const a = state.effectA.mirrors;
+  const b = state.effectB.mirrors;
   // Genome morph underneath during fade
-  if (state.sheepMix < 0.02) return `${a}`;
-  if (state.sheepMix > 0.98) return `${b}`;
-  const m = Math.round(a + (b - a) * state.sheepMix);
+  if (state.effectMix < 0.02) return `${a}`;
+  if (state.effectMix > 0.98) return `${b}`;
+  const m = Math.round(a + (b - a) * state.effectMix);
   return `${a}→${b}(~${m})`;
 }
 
 function layoutLabel() {
-  const a = LAYOUTS[state.sheepA.layout]?.name ?? "?";
-  const b = LAYOUTS[state.sheepB.layout]?.name ?? "?";
-  if (state.sheepMix < 0.02) return a;
-  if (state.sheepMix > 0.98) return b;
+  const a = LAYOUTS[state.effectA.layout]?.name ?? "?";
+  const b = LAYOUTS[state.effectB.layout]?.name ?? "?";
+  if (state.effectMix < 0.02) return a;
+  if (state.effectMix > 0.98) return b;
   return `${a}→${b}`;
 }
 
 function mixLabel() {
-  if (state.sheepMix < 0.02 || state.sheepMix > 0.98) return "—";
+  if (state.effectMix < 0.02 || state.effectMix > 0.98) return "—";
   return MIX_NAMES[state.mixMode] ?? "?";
 }
 
@@ -239,9 +239,9 @@ function qualityLabel() {
 
 function jumpToLayout(layoutId) {
   for (let i = 0; i < LAYOUT_SEQ.length * 3; i++) {
-    state.time += SHEEP_DWELL + SHEEP_FADE;
+    state.time += EFFECT_DWELL + EFFECT_FADE;
     updateGenome(0);
-    if (state.sheepA.layout === layoutId && state.sheepMix < 0.05) break;
+    if (state.effectA.layout === layoutId && state.effectMix < 0.05) break;
   }
 }
 
@@ -276,7 +276,7 @@ function sampleAudioLevel() {
   if (!state.audioEnabled || !analyser || !audioData) {
     // Faux reactivity always available for eelaudio layout
     const faux = 0.55 + 0.45 * Math.sin(state.time * 2.7) * Math.sin(state.time * 1.3 + 1.7);
-    state.audioLevel = state.sheepA.layout === 7 || state.sheepB.layout === 7 ? faux * 0.85 : 0;
+    state.audioLevel = state.effectA.layout === 7 || state.effectB.layout === 7 ? faux * 0.85 : 0;
     return;
   }
   analyser.getByteFrequencyData(audioData);
@@ -324,12 +324,12 @@ async function init() {
   }
   if (!configured) context.configure(config);
 
-  const [sheepCode, compCode] = await Promise.all([
+  const [effectCode, compCode] = await Promise.all([
     fetch("shader.wgsl").then((r) => r.text()),
     fetch("composite.wgsl").then((r) => r.text()),
   ]);
 
-  const sheepModule = device.createShaderModule({ code: sheepCode });
+  const effectModule = device.createShaderModule({ code: effectCode });
   const compModule = device.createShaderModule({ code: compCode });
 
   async function checkModule(module, label) {
@@ -343,16 +343,16 @@ async function init() {
     return !info.messages.some((m) => m.type === "error");
   }
 
-  if (!(await checkModule(sheepModule, "sheep")) || !(await checkModule(compModule, "composite"))) {
+  if (!(await checkModule(effectModule, "effect")) || !(await checkModule(compModule, "composite"))) {
     showFallback();
     fallback.querySelector("p").textContent =
       "Shader compile failed — see console for WGSL errors.";
     return;
   }
 
-  // Sheep pass → rgba16float (or rgba8unorm fallback) offscreen, or straight to canvas
+  // Effect pass → rgba16float (or rgba8unorm fallback) offscreen, or straight to canvas
   const offscreenFormat = "rgba16float";
-  let sheepTargetsFormat = offscreenFormat;
+  let effectTargetsFormat = offscreenFormat;
   try {
     // Probe: some adapters may not filter rgba16float
     device.createTexture({
@@ -361,27 +361,27 @@ async function init() {
       usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
     }).destroy();
   } catch {
-    sheepTargetsFormat = "rgba8unorm";
+    effectTargetsFormat = "rgba8unorm";
   }
 
-  const sheepPipelineScreen = device.createRenderPipeline({
+  const effectPipelineScreen = device.createRenderPipeline({
     layout: "auto",
-    vertex: { module: sheepModule, entryPoint: "vs_main" },
+    vertex: { module: effectModule, entryPoint: "vs_main" },
     fragment: {
-      module: sheepModule,
+      module: effectModule,
       entryPoint: "fs_main",
       targets: [{ format }],
     },
     primitive: { topology: "triangle-list" },
   });
 
-  const sheepPipelineOff = device.createRenderPipeline({
+  const effectPipelineOff = device.createRenderPipeline({
     layout: "auto",
-    vertex: { module: sheepModule, entryPoint: "vs_main" },
+    vertex: { module: effectModule, entryPoint: "vs_main" },
     fragment: {
-      module: sheepModule,
+      module: effectModule,
       entryPoint: "fs_main",
-      targets: [{ format: sheepTargetsFormat }],
+      targets: [{ format: effectTargetsFormat }],
     },
     primitive: { topology: "triangle-list" },
   });
@@ -397,12 +397,12 @@ async function init() {
     primitive: { topology: "triangle-list" },
   });
 
-  const sheepUniformBuffer = device.createBuffer({
-    size: SHEEP_BYTES,
+  const effectUniformBuffer = device.createBuffer({
+    size: EFFECT_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
-  const sheepUniformBufferB = device.createBuffer({
-    size: SHEEP_BYTES,
+  const effectUniformBufferB = device.createBuffer({
+    size: EFFECT_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
   const compUniformBuffer = device.createBuffer({
@@ -415,17 +415,17 @@ async function init() {
     minFilter: "linear",
   });
 
-  const sheepBindA = device.createBindGroup({
-    layout: sheepPipelineOff.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: sheepUniformBuffer } }],
+  const effectBindA = device.createBindGroup({
+    layout: effectPipelineOff.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: effectUniformBuffer } }],
   });
-  const sheepBindB = device.createBindGroup({
-    layout: sheepPipelineOff.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: sheepUniformBufferB } }],
+  const effectBindB = device.createBindGroup({
+    layout: effectPipelineOff.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: effectUniformBufferB } }],
   });
-  const sheepBindScreen = device.createBindGroup({
-    layout: sheepPipelineScreen.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: sheepUniformBuffer } }],
+  const effectBindScreen = device.createBindGroup({
+    layout: effectPipelineScreen.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: effectUniformBuffer } }],
   });
 
   let rtA = null;
@@ -447,12 +447,12 @@ async function init() {
       GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING;
     rtA = device.createTexture({
       size: [w, h],
-      format: sheepTargetsFormat,
+      format: effectTargetsFormat,
       usage,
     });
     rtB = device.createTexture({
       size: [w, h],
-      format: sheepTargetsFormat,
+      format: effectTargetsFormat,
       usage,
     });
     compBind = device.createBindGroup({
@@ -466,32 +466,32 @@ async function init() {
     });
   }
 
-  const sheepUniforms = new Float32Array(SHEEP_FLOATS);
-  const sheepUniformsB = new Float32Array(SHEEP_FLOATS);
+  const effectUniforms = new Float32Array(EFFECT_FLOATS);
+  const effectUniformsB = new Float32Array(EFFECT_FLOATS);
   const compUniforms = new Float32Array(COMP_FLOATS);
 
-  function writeSheep(buf, arr, sheep, w, h) {
+  function writeEffect(buf, arr, effect, w, h) {
     // Genome morph underneath: lerp mirrors / theme seed feel during fade
-    const morph = state.sheepMix;
+    const morph = state.effectMix;
     const theme =
-      sheep === state.sheepA
-        ? state.sheepA.theme + (state.sheepB.theme - state.sheepA.theme) * morph * 0.35
-        : state.sheepB.theme + (state.sheepA.theme - state.sheepB.theme) * (1 - morph) * 0.15;
+      effect === state.effectA
+        ? state.effectA.theme + (state.effectB.theme - state.effectA.theme) * morph * 0.35
+        : state.effectB.theme + (state.effectA.theme - state.effectB.theme) * (1 - morph) * 0.15;
     const mirrors =
-      sheep === state.sheepA
-        ? state.sheepA.mirrors + (state.sheepB.mirrors - state.sheepA.mirrors) * morph * 0.4
-        : state.sheepB.mirrors + (state.sheepA.mirrors - state.sheepB.mirrors) * (1 - morph) * 0.2;
+      effect === state.effectA
+        ? state.effectA.mirrors + (state.effectB.mirrors - state.effectA.mirrors) * morph * 0.4
+        : state.effectB.mirrors + (state.effectA.mirrors - state.effectB.mirrors) * (1 - morph) * 0.2;
 
     arr[0] = w;
     arr[1] = h;
     arr[2] = state.time;
-    arr[3] = sheep.seed;
+    arr[3] = effect.seed;
     arr[4] = state.mouse[0];
     arr[5] = state.mouse[1];
     arr[6] = theme;
     arr[7] = mirrors;
     arr[8] = state.intensity;
-    arr[9] = sheep.layout;
+    arr[9] = effect.layout;
     arr[10] = state.ringAmount;
     arr[11] = state.audioLevel;
     arr[12] = state.highQuality ? 1 : 0;
@@ -542,21 +542,21 @@ async function init() {
       state.autoTheme = false;
       state.pinnedTheme = Number(e.key) - 1;
     } else if (e.key === "t" || e.key === "T") {
-      // Jump toward next sheep morph (layout/genome)
-      state.time += SHEEP_DWELL * 0.92;
+      // Jump toward next effect morph (layout/genome)
+      state.time += EFFECT_DWELL * 0.92;
     } else if (e.key === "c" || e.key === "C") {
       state.time += RING_DWELL * 0.95;
     } else if (e.key === "r" || e.key === "R") {
       state.seed = Math.random() * 10;
       state.autoTheme = true;
-      state.time += SHEEP_DWELL * 0.85;
+      state.time += EFFECT_DWELL * 0.85;
     } else if (e.key === "x" || e.key === "X") {
       // Force next transition + cycle mix mode
       state.pinnedMixMode =
         state.pinnedMixMode == null
           ? MIX.HEX
           : (state.pinnedMixMode + 1) % 4;
-      state.time += SHEEP_DWELL * 0.95;
+      state.time += EFFECT_DWELL * 0.95;
     } else if (e.key === "m" || e.key === "M") {
       // Pin / cycle mix mode without jumping time
       state.pinnedMixMode =
@@ -604,7 +604,7 @@ async function init() {
     state.last = now;
     updateGenome(dt);
 
-    const transitioning = state.sheepMix > 0.001 && state.sheepMix < 0.999;
+    const transitioning = state.effectMix > 0.001 && state.effectMix < 0.999;
 
     state.frames += 1;
     if (now - state.fpsWindowStart >= 500) {
@@ -620,9 +620,9 @@ async function init() {
     const view = context.getCurrentTexture().createView();
 
     if (!transitioning) {
-      // Single sheep → screen (full res, cheapest path)
-      const sheep = state.sheepMix >= 0.5 ? state.sheepB : state.sheepA;
-      writeSheep(sheepUniformBuffer, sheepUniforms, sheep, canvas.width, canvas.height);
+      // Single effect → screen (full res, cheapest path)
+      const effect = state.effectMix >= 0.5 ? state.effectB : state.effectA;
+      writeEffect(effectUniformBuffer, effectUniforms, effect, canvas.width, canvas.height);
       const pass = encoder.beginRenderPass({
         colorAttachments: [
           {
@@ -633,15 +633,15 @@ async function init() {
           },
         ],
       });
-      pass.setPipeline(sheepPipelineScreen);
-      pass.setBindGroup(0, sheepBindScreen);
+      pass.setPipeline(effectPipelineScreen);
+      pass.setBindGroup(0, effectBindScreen);
       pass.draw(3);
       pass.end();
     } else {
       // Dual-render A+B (both advance in time) → composite
       ensureTargets(canvas.width, canvas.height);
-      writeSheep(sheepUniformBuffer, sheepUniforms, state.sheepA, rtW, rtH);
-      writeSheep(sheepUniformBufferB, sheepUniformsB, state.sheepB, rtW, rtH);
+      writeEffect(effectUniformBuffer, effectUniforms, state.effectA, rtW, rtH);
+      writeEffect(effectUniformBufferB, effectUniformsB, state.effectB, rtW, rtH);
 
       const clear = { r: 0.01, g: 0.015, b: 0.04, a: 1 };
       {
@@ -655,8 +655,8 @@ async function init() {
             },
           ],
         });
-        pass.setPipeline(sheepPipelineOff);
-        pass.setBindGroup(0, sheepBindA);
+        pass.setPipeline(effectPipelineOff);
+        pass.setBindGroup(0, effectBindA);
         pass.draw(3);
         pass.end();
       }
@@ -671,21 +671,21 @@ async function init() {
             },
           ],
         });
-        pass.setPipeline(sheepPipelineOff);
-        pass.setBindGroup(0, sheepBindB);
+        pass.setPipeline(effectPipelineOff);
+        pass.setBindGroup(0, effectBindB);
         pass.draw(3);
         pass.end();
       }
 
       compUniforms[0] = canvas.width;
       compUniforms[1] = canvas.height;
-      compUniforms[2] = state.sheepMix;
+      compUniforms[2] = state.effectMix;
       compUniforms[3] = state.mixMode;
       compUniforms[4] = state.time;
       compUniforms[5] = state.seed;
-      compUniforms[6] = state.sheepA.mirrors;
-      compUniforms[7] = state.sheepB.mirrors;
-      compUniforms[8] = state.sheepMix; // genome morph factor
+      compUniforms[6] = state.effectA.mirrors;
+      compUniforms[7] = state.effectB.mirrors;
+      compUniforms[8] = state.effectMix; // genome morph factor
       compUniforms[9] = 0;
       compUniforms[10] = 0;
       compUniforms[11] = 0;
