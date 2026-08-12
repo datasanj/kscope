@@ -57,7 +57,7 @@ Full titles, authors, URLs, licenses: **[ATTRIBUTION.md](./ATTRIBUTION.md)**.
 Highlights:
 
 - Mandala flowers — mrange **CC0** — https://www.shadertoy.com/view/NlcSRB (via glsl-to-mp4)
-- Star Nest — Kali **MIT** — https://www.shadertoy.com/view/XlfGRj
+- Star Nest — Kali **MIT** — prefer [`references/StarNest.md`](./references/StarNest.md) (not Shadertoy.com); credit https://www.shadertoy.com/view/XlfGRj
 - Apollian with a twist / Electric Eel — mrange **CC0** (Shaderfuse ports)
 - Do **not** paste Truchet 7lKSWW or NC-SA material
 
