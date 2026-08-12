@@ -6,23 +6,19 @@ Say **“remove X”** using a short name from the **Newly added this pass** tab
 
 ## Newly added this pass (removable)
 
+Dense mrange **CC0** ports — Shaderfuse SoTW pages quote author `CC0:` in the Shadertoy description. Holi-remapped. Toy kaleido MIT set from the prior commit was **removed**.
+
 | Short name | Source | License | Note |
 | --- | --- | --- | --- |
-| `rainbow_nest` | [Timmoth/RainbowKaleidoscope](https://github.com/Timmoth/RainbowKaleidoscope) | **MIT** (`LICENSE`) | Kaliset-style nest; Holi remap; quality-capped iters. Jump: `N` |
-| `glass_shard` | [zebiv-code/kaleidoscope](https://github.com/zebiv-code/kaleidoscope) | **MIT** (`LICENSE.md`) | Glass-shard chamber + polar fold; Holi tints; shard caps. Jump: `I` |
-| `dream_fold` | [modelmiser/mm-dream](https://github.com/modelmiser/mm-dream) | **MIT** (`LICENSE`) | Fold + synthetic Holi bars (no CRT/CPU bars). Jump: `D` |
-| `play_kaleido` | [heyimjames/WebGL-Shader-Playground](https://github.com/heyimjames/WebGL-Shader-Playground) kaleidoscope preset | **MIT** (README badge; no `LICENSE` file) | Segment fold + Holi pattern layers. Jump: `K` |
-| `play_plasma` | same playground — `plasma` | **MIT** (README badge) | Classic plasma → Holi. Jump: `Z` |
-| `play_lava` | same playground — `lavaLamp` | **MIT** (README badge) | Soft Holi metaballs. Auto-cycle |
-| `play_aurora` | same playground — `aurora` | **MIT** (README badge) | Flowing Holi aurora bands. Auto-cycle |
-| `play_galaxy` | same playground — `galaxySpiral` | **MIT** (README badge) | Spiral arms + Holi stars. Auto-cycle |
-| `play_holo` | same playground — `holographicGradient` | **MIT** (README badge) | Iridescent Holi interference. Jump: `O` |
-| `play_waves` | same playground — `waves` | **MIT** (README badge) | Multi-source Holi ripples. Jump: `W` |
-| `play_voronoi` | same playground — `voronoi` (+ kaleido wrap) | **MIT** (README badge) | Animated cells → Holi. Auto-cycle |
-| `play_neon` | same playground — `neonGrid` | **MIT** (README badge) | Perspective Holi neon grid. Auto-cycle |
-| `fold_mirror` | [brogli/Kaleidoscope](https://github.com/brogli/Kaleidoscope) fold math | **MIT** (`LICENSE`) | Polar slice fold + Holi generative fill (not texture sample). Auto-cycle |
+| `neonwave` | [NeonwaveSunrise](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/NeonwaveSunrise/) · [7dyyRy](https://www.shadertoy.com/view/7dyyRy) | **CC0** mrange | Stacked heightmap planes + Holi sky. Jump: `N` |
+| `ai_heart` | [AiNotIncluded](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/AiNotIncluded/) · [ctd3Rl](https://www.shadertoy.com/view/ctd3Rl) | **CC0** mrange | Heart DE + Holi lightning. Jump: `I` |
+| `mandelbulb` | [InsideTheMandelbulbIi](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/InsideTheMandelbulbIi/) · [mtScRc](https://www.shadertoy.com/view/mtScRc) | **CC0** mrange | Raymarched Mandelbulb; Holi glass tint. Jump: `D` |
+| `twinkle_tun` | [TrailingTheTwinklingTunnel](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/TrailingTheTwinklingTunnel/) · [WfcGWj](https://www.shadertoy.com/view/WfcGWj) | **CC0** mrange | Gyroid-difference tunnel glow → Holi. Jump: `K` |
+| `starry_pl` | [StarryPlanes](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/StarryPlanes/) · [MfjyWK](https://www.shadertoy.com/view/MfjyWK) | **CC0** mrange | Path star cutouts on planes → Holi. Jump: `Z` |
+| `clearly_bug` | [ClearlyABug](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/ClearlyABug/) · [33cGDj](https://www.shadertoy.com/view/33cGDj) | **CC0** mrange | Happy-accident lattice glow → Holi. Jump: `W` |
+| `beats4d` | [D4DBeats](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/D4DBeats/) · [tfK3Dy](https://www.shadertoy.com/view/tfK3Dy) | **CC0** mrange | 4D lattice inversion; faux beat. Jump: `O` |
 
-**Skipped (not copyable here):** Quasar / Monster / PlasmaGlobe / Drive Home / OrbitTrap / default Shadertoy NC-SA; Godot Simple Kaleidoscope (license not verified from page scrape); glsl-to-mp4 refs without explicit CC0/MIT (default NC-SA).
+**Removed this pass (do not re-add):** `rainbow_nest`, `glass_shard`, `dream_fold`, `play_*`, `fold_mirror`.
 
 ## All current effects
 
@@ -38,7 +34,7 @@ Say **“remove X”** using a short name from the **Newly added this pass** tab
 | 7 | `eelaudio` | Eel audio fork — **CC0** lineage |
 | 8 | `reflect` | Let’s self reflect — **CC0** |
 | 9 | `bubble` | Reflective bubble tunnel — mrange **CC0** |
-| 10 | `gulal_pulse` | Original Holi rings (Quasar *feel* only; NC-SA not ported) |
-| 11–23 | (table above) | This pass |
+| 10 | `gulal_pulse` | Original Holi rings (Quasar *feel* only) |
+| 11–17 | (table above) | This corrective pass |
 
 Full license URLs: **[ATTRIBUTION.md](./ATTRIBUTION.md)**.

@@ -32,29 +32,23 @@ const LAYOUTS = [
   { id: 8, name: "reflect" },
   { id: 9, name: "bubble" },
   { id: 10, name: "gulal_pulse" },
-  // This pass — clear MIT (or README-MIT) sources only; see EFFECTS_ADDED.md
-  { id: 11, name: "rainbow_nest" },
-  { id: 12, name: "glass_shard" },
-  { id: 13, name: "dream_fold" },
-  { id: 14, name: "play_kaleido" },
-  { id: 15, name: "play_plasma" },
-  { id: 16, name: "play_lava" },
-  { id: 17, name: "play_aurora" },
-  { id: 18, name: "play_galaxy" },
-  { id: 19, name: "play_holo" },
-  { id: 20, name: "play_waves" },
-  { id: 21, name: "play_voronoi" },
-  { id: 22, name: "play_neon" },
-  { id: 23, name: "fold_mirror" },
+  // Corrective pass — mrange CC0 (Shaderfuse SoTW quotes author CC0:). See EFFECTS_ADDED.md
+  { id: 11, name: "neonwave" },
+  { id: 12, name: "ai_heart" },
+  { id: 13, name: "mandelbulb" },
+  { id: 14, name: "twinkle_tun" },
+  { id: 15, name: "starry_pl" },
+  { id: 16, name: "clearly_bug" },
+  { id: 17, name: "beats4d" },
 ];
 
 const LAYOUT_FLOCK = 0;
 const LAYOUT_TRUCHET = 1;
 
-// Auto: mix prior colorful set + newly added MIT ports
+// Auto: prior colorful set + CC0 mrange ports
 const LAYOUT_SEQ = [
-  0, 11, 2, 10, 14, 1, 12, 5, 15, 3, 16, 6, 13, 4, 17, 9, 18, 8, 19, 7, 20, 21, 22, 23,
-  0, 14, 11, 2, 12, 10, 15, 5, 16, 3, 17, 6, 18, 13, 19, 4, 20, 9, 21, 8, 22, 23, 7,
+  0, 11, 2, 10, 14, 1, 12, 5, 15, 3, 13, 6, 16, 4, 17, 9, 8, 7,
+  0, 14, 11, 2, 12, 10, 15, 5, 13, 3, 16, 6, 17, 4, 9, 8,
 ];
 
 const MIRROR_SEQ = [3, 4, 5, 6, 4, 8, 5, 3, 7, 4, 6, 5, 4, 3];
@@ -605,13 +599,13 @@ async function init() {
         b: 9, // bubble
         y: 8, // reflect (self)
         h: 10, // gulal_pulse
-        n: 11, // rainbow_nest
-        i: 12, // glass_shard
-        d: 13, // dream_fold
-        k: 14, // play_kaleido
-        z: 15, // play_plasma
-        w: 20, // play_waves
-        o: 19, // play_holo
+        n: 11, // neonwave
+        i: 12, // ai_heart
+        d: 13, // mandelbulb
+        k: 14, // twinkle_tun
+        z: 15, // starry_pl
+        w: 16, // clearly_bug
+        o: 17, // beats4d
       };
       const k = e.key.toLowerCase();
       if (map[k] != null) jumpToLayout(map[k]);

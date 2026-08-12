@@ -6,7 +6,7 @@ screensaver, built for high resolution / high refresh (4K @ 120Hz class).
 Fragment-only effects; dual-texture transitions only while morphing; no IFS histogram.
 **Boring kaleido / thin tunnel / hybrid layouts are gone.**
 
-Removable catalog for this PR’s new ports: **[EFFECTS_ADDED.md](./EFFECTS_ADDED.md)**.
+Removable catalog for this PR’s new CC0 ports: **[EFFECTS_ADDED.md](./EFFECTS_ADDED.md)**.
 
 ## Layouts (auto-cycled)
 
@@ -23,11 +23,13 @@ Removable catalog for this PR’s new ports: **[EFFECTS_ADDED.md](./EFFECTS_ADDE
 | `reflect` | Let’s self reflect (CC0) — quality-gated mirrors |
 | `bubble` | Reflective bubble tunnel (CC0 mrange) |
 | `gulal_pulse` | Original Holi radial energy rings (inspired by Quasar *feel*; not a port) |
-| `rainbow_nest` | RainbowKaleidoscope (**MIT**) → Holi |
-| `glass_shard` | zebiv kaleidoscope shards (**MIT**) → Holi |
-| `dream_fold` | mm-dream fold (**MIT**) → Holi bars |
-| `play_kaleido` … `play_neon` | WebGL-Shader-Playground presets (**MIT** badge) → Holi |
-| `fold_mirror` | brogli kaleido fold (**MIT**) + Holi fill |
+| `neonwave` | Neonwave sunrise (**CC0** mrange) → Holi |
+| `ai_heart` | AI not included (**CC0** mrange) → Holi |
+| `mandelbulb` | Inside the mandelbulb II (**CC0** mrange) → Holi |
+| `twinkle_tun` | Trailing the Twinkling Tunnel (**CC0** mrange) → Holi |
+| `starry_pl` | Starry planes (**CC0** mrange) → Holi |
+| `clearly_bug` | Clearly a bug (**CC0** mrange) → Holi |
+| `beats4d` | 4D Beats (**CC0** mrange) → Holi |
 
 Dual-effect transitions: **hex** (default when flock involved) · **iris** · **wedge** · **storm**.
 
@@ -40,7 +42,7 @@ Holi gulal rainbow on everything (gulabi / laal / kesar / hari / **rang** defaul
 | `Q` | Dual-transition half-res (default) ↔ full dual |
 | `V` | Raymarch **LQ** (default, 4K-friendlier) ↔ **HQ** caps |
 
-Heavy layouts (`starnest`, `reflect`, `bubble`, eels, `glass_shard`, `rainbow_nest`) use iteration caps; HQ raises them.
+Heavy layouts (`starnest`, `reflect`, `bubble`, eels, `mandelbulb`, tunnels) use iteration caps; HQ raises them.
 
 ## Controls
 
@@ -52,7 +54,7 @@ Heavy layouts (`starnest`, `reflect`, `bubble`, eels, `glass_shard`, `rainbow_ne
 | `1`–`6` | Pin Holi bias / color (still multi-hue) |
 | `T` | Next effect dual fade |
 | `X` / `M` | Cycle mix mode (hex→iris→wedge→storm) |
-| `F` flock · `U` truchet · `S` starnest · `G` golden · `L` logspiral · `P` apollo · `E` eel · `J` eelaudio · `Y` reflect · `B` bubble · `H` gulal_pulse · `N` rainbow_nest · `I` glass_shard · `D` dream_fold · `K` play_kaleido · `Z` play_plasma · `W` play_waves · `O` play_holo | Jump layout |
+| `F` flock · `U` truchet · `S` starnest · `G` golden · `L` logspiral · `P` apollo · `E` eel · `J` eelaudio · `Y` reflect · `B` bubble · `H` gulal_pulse · `N` neonwave · `I` ai_heart · `D` mandelbulb · `K` twinkle_tun · `Z` starry_pl · `W` clearly_bug · `O` beats4d | Jump layout |
 | `A` | Toggle optional mic for `eelaudio` (fallback: time faux-beat) |
 | `Q` / `V` | Dual res / raymarch quality |
 | `R` | Remix seed + jump morph |
@@ -68,8 +70,8 @@ Highlights:
 - Mandala flowers — mrange **CC0** — https://www.shadertoy.com/view/NlcSRB (via glsl-to-mp4)
 - Star Nest — Kali **MIT** — prefer [`references/StarNest.md`](./references/StarNest.md) (not Shadertoy.com); credit https://www.shadertoy.com/view/XlfGRj
 - Apollian with a twist / Electric Eel — mrange **CC0** (Shaderfuse ports)
-- `gulal_pulse` — original; inspired by kishimisu Quasar (msGyzc) radial-ring *feel*; upstream **NC-SA** — not a port
-- New MIT ports: RainbowKaleidoscope, zebiv kaleidoscope, mm-dream, WebGL-Shader-Playground presets, brogli fold
+- New SoTW **CC0** mrange ports: Neonwave, AI not included, Mandelbulb II, Twinkling Tunnel, Starry planes, Clearly a bug, 4D Beats
+- `gulal_pulse` — original; Quasar *feel* only; upstream **NC-SA** — not a port
 - Do **not** paste Truchet 7lKSWW or NC-SA material
 
 ## Run

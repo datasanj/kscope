@@ -56,19 +56,25 @@ From the Shaderfuse port of cdV3DW:
 - kscope ships an **original** WGSL concentric / pulsing Holi energy-ring effect
 - Color uses Holi powders + Inigo Quilez **cosine palette** (**MIT**) — not Quasar’s color code
 
-## MIT ports added this pass
+## CC0 mrange ports added this pass (Shaderfuse SoTW)
 
 See also **[EFFECTS_ADDED.md](./EFFECTS_ADDED.md)** for the removable short-name list.
 
-| HUD | Project | URL | License evidence | Notes |
-| --- | --- | --- | --- | --- |
-| `rainbow_nest` | RainbowKaleidoscope — Tim | https://github.com/Timmoth/RainbowKaleidoscope | **MIT** `LICENSE` | `src/fragmentShader.glsl`; Holi remap; IQ hsl helper unused |
-| `glass_shard` | zebiv-code/kaleidoscope — Bill Heyman | https://github.com/zebiv-code/kaleidoscope | **MIT** `LICENSE.md` | `web/js/shaders.js` chamber+fold; shard caps |
-| `dream_fold` | mm-dream — ModelMiser | https://github.com/modelmiser/mm-dream | **MIT** `LICENSE` | `src/dream.wgsl` fold; synthetic Holi bars |
-| `play_kaleido` … `play_neon` | WebGL-Shader-Playground — heyimjames | https://github.com/heyimjames/WebGL-Shader-Playground | **MIT** (README badge; no `LICENSE` file) | Presets in `main.js` `SHADERS`; Holi remap |
-| `fold_mirror` | brogli/Kaleidoscope | https://github.com/brogli/Kaleidoscope | **MIT** `LICENSE` | Polar fold from Unity post; Holi generative fill (no scene texture) |
+Author `CC0:` quoted on Shaderfuse SoTW pages (Shadertoy description). Fuse packaging may mention NC-SA for JiPi’s DCTL wrap — we follow the **author CC0** on the shader body. Holi remap in kscope.
 
-**Not copied:** Quasar, Monster, Plasma Globe, The Drive Home, OrbitTrap, or other default Shadertoy **CC BY-NC-SA** material from glsl-to-mp4 (only Star Nest MIT + Mandala flowers CC0 are clear exceptions there).
+| HUD | Title | Shaderfuse | Shadertoy | License |
+| --- | --- | --- | --- | --- |
+| `neonwave` | Neonwave sunrise | [NeonwaveSunrise](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/NeonwaveSunrise/) | [7dyyRy](https://www.shadertoy.com/view/7dyyRy) | **CC0** mrange |
+| `ai_heart` | AI not included | [AiNotIncluded](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/AiNotIncluded/) | [ctd3Rl](https://www.shadertoy.com/view/ctd3Rl) | **CC0** mrange |
+| `mandelbulb` | Inside the mandelbulb II | [InsideTheMandelbulbIi](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/InsideTheMandelbulbIi/) | [mtScRc](https://www.shadertoy.com/view/mtScRc) | **CC0** mrange |
+| `twinkle_tun` | Trailing the Twinkling Tunnel | [TrailingTheTwinklingTunnel](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/TrailingTheTwinklingTunnel/) | [WfcGWj](https://www.shadertoy.com/view/WfcGWj) | **CC0** mrange |
+| `starry_pl` | Starry planes | [StarryPlanes](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/StarryPlanes/) | [MfjyWK](https://www.shadertoy.com/view/MfjyWK) | **CC0** mrange |
+| `clearly_bug` | Clearly a bug | [ClearlyABug](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/ClearlyABug/) | [33cGDj](https://www.shadertoy.com/view/33cGDj) | **CC0** mrange |
+| `beats4d` | 4D Beats | [D4DBeats](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/D4DBeats/) | [tfK3Dy](https://www.shadertoy.com/view/tfK3Dy) | **CC0** mrange |
+
+**Removed / not shipped:** RainbowKaleidoscope, zebiv kaleidoscope, mm-dream, WebGL-Shader-Playground presets, brogli fold, Godot Simple Kaleidoscope — rejected as too weak / toy kaleido.
+
+**Not copied:** Quasar, Monster, Plasma Globe, The Drive Home, OrbitTrap, or other default Shadertoy **CC BY-NC-SA** material.
 
 ## Other
 
