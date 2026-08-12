@@ -56,6 +56,20 @@ From the Shaderfuse port of cdV3DW:
 - kscope ships an **original** WGSL concentric / pulsing Holi energy-ring effect
 - Color uses Holi powders + Inigo Quilez **cosine palette** (**MIT**) — not Quasar’s color code
 
+## MIT ports added this pass
+
+See also **[EFFECTS_ADDED.md](./EFFECTS_ADDED.md)** for the removable short-name list.
+
+| HUD | Project | URL | License evidence | Notes |
+| --- | --- | --- | --- | --- |
+| `rainbow_nest` | RainbowKaleidoscope — Tim | https://github.com/Timmoth/RainbowKaleidoscope | **MIT** `LICENSE` | `src/fragmentShader.glsl`; Holi remap; IQ hsl helper unused |
+| `glass_shard` | zebiv-code/kaleidoscope — Bill Heyman | https://github.com/zebiv-code/kaleidoscope | **MIT** `LICENSE.md` | `web/js/shaders.js` chamber+fold; shard caps |
+| `dream_fold` | mm-dream — ModelMiser | https://github.com/modelmiser/mm-dream | **MIT** `LICENSE` | `src/dream.wgsl` fold; synthetic Holi bars |
+| `play_kaleido` … `play_neon` | WebGL-Shader-Playground — heyimjames | https://github.com/heyimjames/WebGL-Shader-Playground | **MIT** (README badge; no `LICENSE` file) | Presets in `main.js` `SHADERS`; Holi remap |
+| `fold_mirror` | brogli/Kaleidoscope | https://github.com/brogli/Kaleidoscope | **MIT** `LICENSE` | Polar fold from Unity post; Holi generative fill (no scene texture) |
+
+**Not copied:** Quasar, Monster, Plasma Globe, The Drive Home, OrbitTrap, or other default Shadertoy **CC BY-NC-SA** material from glsl-to-mp4 (only Star Nest MIT + Mandala flowers CC0 are clear exceptions there).
+
 ## Other
 
 - Dave Hoskins “Hash without Sine” — **MIT** — https://www.shadertoy.com/view/4djSRW

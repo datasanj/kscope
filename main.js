@@ -32,13 +32,30 @@ const LAYOUTS = [
   { id: 8, name: "reflect" },
   { id: 9, name: "bubble" },
   { id: 10, name: "gulal_pulse" },
+  // This pass — clear MIT (or README-MIT) sources only; see EFFECTS_ADDED.md
+  { id: 11, name: "rainbow_nest" },
+  { id: 12, name: "glass_shard" },
+  { id: 13, name: "dream_fold" },
+  { id: 14, name: "play_kaleido" },
+  { id: 15, name: "play_plasma" },
+  { id: 16, name: "play_lava" },
+  { id: 17, name: "play_aurora" },
+  { id: 18, name: "play_galaxy" },
+  { id: 19, name: "play_holo" },
+  { id: 20, name: "play_waves" },
+  { id: 21, name: "play_voronoi" },
+  { id: 22, name: "play_neon" },
+  { id: 23, name: "fold_mirror" },
 ];
 
 const LAYOUT_FLOCK = 0;
 const LAYOUT_TRUCHET = 1;
 
-// Auto: cycle colorful effects (flock + 8 ports + gulal_pulse)
-const LAYOUT_SEQ = [0, 2, 10, 1, 5, 3, 6, 4, 9, 8, 7, 10, 0, 5, 2, 1, 3, 6, 4, 9];
+// Auto: mix prior colorful set + newly added MIT ports
+const LAYOUT_SEQ = [
+  0, 11, 2, 10, 14, 1, 12, 5, 15, 3, 16, 6, 13, 4, 17, 9, 18, 8, 19, 7, 20, 21, 22, 23,
+  0, 14, 11, 2, 12, 10, 15, 5, 16, 3, 17, 6, 18, 13, 19, 4, 20, 9, 21, 8, 22, 23, 7,
+];
 
 const MIRROR_SEQ = [3, 4, 5, 6, 4, 8, 5, 3, 7, 4, 6, 5, 4, 3];
 
@@ -530,7 +547,8 @@ async function init() {
   });
 
   canvas.addEventListener("click", () => {
-    state.seed = Math.random() * 10;
+    // Advance dual-effect morph to the next layout (same as T) — not a color remix
+    state.time += EFFECT_DWELL * 0.92;
   });
 
   window.addEventListener("keydown", (e) => {
@@ -576,7 +594,7 @@ async function init() {
     } else if (e.key === "a" || e.key === "A") {
       // Optional mic for eelaudio — safe no-op if denied/unavailable
       toggleMicAudio();
-    } else if ("fuglesbyh".includes(e.key.toLowerCase()) && e.key.length === 1) {
+    } else if ("fuglesbyhndikzwo".includes(e.key.toLowerCase()) && e.key.length === 1) {
       const map = {
         f: 0, // flock
         u: 1, // truchet
@@ -587,6 +605,13 @@ async function init() {
         b: 9, // bubble
         y: 8, // reflect (self)
         h: 10, // gulal_pulse
+        n: 11, // rainbow_nest
+        i: 12, // glass_shard
+        d: 13, // dream_fold
+        k: 14, // play_kaleido
+        z: 15, // play_plasma
+        w: 20, // play_waves
+        o: 19, // play_holo
       };
       const k = e.key.toLowerCase();
       if (map[k] != null) jumpToLayout(map[k]);

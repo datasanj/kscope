@@ -11,8 +11,7 @@ struct Uniforms {
   theme: f32,
   mirrors: f32,
   intensity: f32,
-  // 0 flock, 1 truchet, 2 starnest, 3 golden, 4 logspiral,
-  // 5 apollo, 6 eel, 7 eelaudio, 8 reflect, 9 bubble, 10 gulal_pulse
+  // 0–10 prior colorful set; 11–23 MIT-port pass (see EFFECTS_ADDED.md)
   layout_mode: f32,
   ring_amount: f32,
   // 0..1 faux/mic audio drive for eelaudio; unused otherwise
@@ -997,6 +996,385 @@ fn gulal_pulse_effect(uv_in: vec2f) -> vec3f {
   return col;
 }
 
+// ===========================================================================
+// MIT-clear ports (this pass). Holi remap. See EFFECTS_ADDED.md / ATTRIBUTION.md.
+// ===========================================================================
+
+// ---- 11 rainbow_nest — Timmoth RainbowKaleidoscope (MIT) ----
+// https://github.com/Timmoth/RainbowKaleidoscope  src/fragmentShader.glsl
+// Holi remap of hsl2rgb path; fixed iteration cap for 4K.
+fn rainbow_nest_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  var p = screen_p(uv_in) * 0.85;
+  p = rotate2(p, t * 0.04 + u.seed);
+  var pp = vec3f(p.x, p.y, 0.0);
+  var f = t;
+  let iters = quality_steps(18, 28);
+  let shrink = 0.4 + sin(t * 0.1) / 20.0;
+  for (var i = 0; i < 32; i++) {
+    if (i >= iters) { break; }
+    f += 0.5 / max(length(pp), 1e-4);
+    let dp = dot(pp, pp);
+    pp = abs(pp) / max(dp, 1e-4) - vec3f(shrink);
+  }
+  // Original used hsl2rgb(sin(f),…); Holi powder lanes instead
+  var col = palette_theme(sin(f) * 0.5 + 0.5 + u.seed * 0.02, u.theme);
+  col += holi_powder(floor(f * 0.35 + 3.0)) * 0.35;
+  col += rainbow(f * 0.08) * 0.25;
+  col *= 0.55 + 0.55 * soft_glow(length(p) - 0.9, 2.5);
+  return col;
+}
+
+// ---- 12 glass_shard — zebiv-code/kaleidoscope (MIT) ----
+// https://github.com/zebiv-code/kaleidoscope  web/js/shaders.js
+// Shard chamber + polar fold; Holi tints; shard count quality-gated.
+fn shard_sdf(q: vec2f, s: f32, typ: f32) -> f32 {
+  if (typ < 1.0) {
+    // triangle-ish
+    let k = 1.73205080757;
+    var p = q;
+    p.x = abs(p.x) - s;
+    p.y = p.y + s / k;
+    if (p.x + k * p.y > 0.0) {
+      p = vec2f(p.x - k * p.y, -k * p.x - p.y) / 2.0;
+    }
+    p.x -= clamp(p.x, -2.0 * s, 0.0);
+    return -length(p) * sign(p.y);
+  } else if (typ < 2.0) {
+    let ab = vec2f(s, s * 0.55);
+    return (length(q / ab) - 1.0) * min(ab.x, ab.y);
+  } else if (typ < 3.0) {
+    let d = abs(q) - vec2f(s * 0.9, s * 0.45);
+    return length(max(d, vec2f(0.0))) + min(max(d.x, d.y), 0.0) - s * 0.12;
+  } else if (typ < 4.0) {
+    return sd_hex(q, s * 0.85);
+  }
+  return max(length(q) - s, -(length(q - vec2f(s * 0.55, 0.0)) - s * 0.8));
+}
+
+fn glass_shard_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time * 0.55;
+  var uv = screen_p(uv_in);
+  let rr = length(uv);
+  var p = uv * 0.95;
+  // old-glass wobble
+  p += 0.012 * (vec2f(hash21(p * 3.0 + t * 0.2), hash21(p * 3.0 + 7.7 - t * 0.15)) - 0.5) * 2.0;
+
+  let segs = max(u.mirrors, 3.0);
+  let seg = PI / segs;
+  var a = atan2(p.y, p.x);
+  a = abs(mod1(a, 2.0 * seg) - seg);
+  let folded = vec2f(cos(a), sin(a)) * length(p);
+
+  // backlight
+  var col = mix(vec3f(0.99, 0.96, 0.89), vec3f(0.68, 0.75, 0.88), smoothstep(0.0, 1.4, length(folded)));
+  col = mix(col, palette_theme(0.15 + u.theme * 0.05, u.theme), 0.35);
+  col *= 0.90 + 0.10 * hash21(folded * 9.0 + u.seed * 13.0);
+
+  let n_shards = quality_steps(10, 18);
+  let px = 0.004;
+  for (var i = 0; i < 24; i++) {
+    if (i >= n_shards) { break; }
+    let fi = f32(i);
+    let h = hash21(vec2f(fi * 7.13, u.seed * 101.0));
+    let h2 = hash22(vec2f(fi * 3.71, u.seed * 57.0));
+    let h3 = hash22(vec2f(fi * 9.23, u.seed * 23.0));
+    let rc = 0.06 + 0.92 * h2.x;
+    let dir = select(-1.0, 1.0, h < 0.5);
+    let th = h2.y * TAU + t * (0.08 + 0.22 * h3.x) * dir;
+    let c = vec2f(cos(th), sin(th)) * rc
+      + 0.16 * vec2f(cos(t * 0.7 + fi * 2.1), sin(t * 0.9 + fi * 1.7));
+    let phi = h3.y * TAU + t * (0.15 + 0.45 * h) * select(-1.0, 1.0, h2.x < 0.5);
+    let q = rotate2(folded - c, phi);
+    let s = 0.08 + 0.22 * fract(h * 5.0);
+    let typ = floor(fract(h * 13.0) * 5.0);
+    let d = shard_sdf(q, s, typ);
+    let cov = smoothstep(px, -px, d);
+    var tint = palette_theme(fi * 0.11 + h + u.theme * 0.05, u.theme);
+    tint = clamp(tint + (h2.y - 0.5) * 0.16, vec3f(0.0), vec3f(1.2));
+    let density = 0.66 + 0.28 * h3.y;
+    col *= mix(vec3f(1.0), tint, density * cov);
+    col += tint * hash21(q * 14.0 + t * 0.6 + fi) * cov * 0.12;
+    let edge = smoothstep(0.020, 0.0, abs(d + 0.005));
+    let glint = 0.5 + 0.5 * sin(phi * 3.0 + th * 2.0 + t * 1.4 + fi);
+    col += vec3f(1.0, 0.98, 0.90) * edge * glint * 0.55;
+  }
+  // seam glow
+  let m = abs(mod1(atan2(p.y, p.x), 2.0 * seg) - seg);
+  let dE = min(m, seg - m) * length(p);
+  col += palette(0.7) * smoothstep(0.014, 0.0, dE) * 0.2;
+  col *= 1.0 - 0.35 * smoothstep(0.62, 0.985, rr);
+  return col;
+}
+
+// ---- 13 dream_fold — modelmiser/mm-dream (MIT) ----
+// https://github.com/modelmiser/mm-dream  src/dream.wgsl
+// Fold + Holi synthetic bars (no CRT/CPU bar uniforms).
+fn dream_fold_coords(sx: f32, sy: f32, fc: f32, angle: f32, t: f32) -> vec2f {
+  let r = sqrt(sx * sx + sy * sy);
+  let theta = atan2(sy, sx);
+  let sector = TAU / max(fc, 2.0);
+  let t_shifted = theta - angle;
+  var t_in = t_shifted - sector * floor(t_shifted / sector);
+  var t_folded = select(t_in, sector - t_in, t_in > sector * 0.5);
+  t_folded += angle;
+  let r_threshold = 0.4 + 0.2 * sin(t * 0.3);
+  let folded_r = abs(r - r_threshold) + r_threshold * 0.5;
+  return vec2f(folded_r * cos(t_folded), folded_r * sin(t_folded));
+}
+
+fn dream_fold_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  var p = screen_p(uv_in);
+  let fc = max(u.mirrors, 3.0);
+  let angle = t * 0.12 + u.seed;
+  let f = dream_fold_coords(p.x, p.y, fc, angle, t);
+  // Synthetic Holi bars in folded space
+  let y = (f.y * 0.5 + 0.5) * 10.0;
+  let x = f.x * 0.5 + 0.5;
+  var col = vec3f(0.0);
+  var sum_w = 0.0;
+  for (var i = 0; i < 10; i++) {
+    let fi = f32(i);
+    let bar_y = fi + 0.5 + 0.35 * sin(t * 1.2 + fi * 0.7 + x * TAU * 1.618);
+    let dist = abs(y - bar_y);
+    let half = 0.55;
+    if (dist < half) {
+      let intensity = cos(dist / half * PI_2);
+      let bloom = pow(1.0 - dist / half, 3.0);
+      var c = palette_theme(fi * 0.09 + t * 0.03 + u.theme * 0.04, u.theme);
+      c += holi_powder(fi) * bloom * 0.45;
+      col += c * intensity;
+      sum_w += intensity;
+    }
+  }
+  if (sum_w > 0.0) {
+    col /= sum_w;
+  }
+  // Screen-blend a rotated sample (mm-dream H+V idea)
+  let f2 = dream_fold_coords(p.y, -p.x, fc, -angle * 0.7, t);
+  let y2 = (f2.y * 0.5 + 0.5) * 10.0;
+  var col2 = palette_theme(y2 * 0.08 + 0.2, u.theme) * soft_glow(fract(y2) - 0.5, 8.0);
+  col = vec3f(1.0) - (vec3f(1.0) - col) * (vec3f(1.0) - col2 * 0.65);
+  col += rainbow(atan2(p.y, p.x) / TAU + t * 0.04) * 0.08;
+  return col;
+}
+
+// ---- 14–22 WebGL-Shader-Playground presets (README MIT badge) ----
+// https://github.com/heyimjames/WebGL-Shader-Playground  main.js SHADERS.*
+// Holi palette remap; no LICENSE file in upstream — badge + user listing.
+
+fn play_kaleido_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  var st = screen_p(uv_in);
+  st = kaleido(st, max(u.mirrors, 3.0));
+  let d = length(st);
+  var color = vec3f(0.0);
+  let complexity = 1.2;
+  for (var i = 0; i < 3; i++) {
+    let fi = f32(i);
+    var p = st * (2.0 + fi * complexity);
+    p = fract(p + t * 0.1 + fi * 0.1);
+    var pattern = sin(p.x * 10.0) * sin(p.y * 10.0);
+    pattern += sin(distance(p, vec2f(0.5)) * 20.0 - t * 2.0);
+    color += palette_theme(pattern * 0.15 + fi * 0.2 + t * 0.05, u.theme) / (3.0 + d * 2.0);
+  }
+  let m = mouse_aspect() * 0.5;
+  color += (1.0 - smoothstep(0.0, 0.5, length(st - m))) * palette(0.4) * 0.25;
+  return color;
+}
+
+fn play_plasma_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  let st = uv_in;
+  let freq = 4.5;
+  var v = sin((st.x + t) * freq);
+  v += sin((st.y + t) * freq);
+  v += sin((st.x + st.y + t) * freq);
+  v += sin(sqrt(st.x * st.x + st.y * st.y + 1.0) * freq);
+  v *= 0.5;
+  var col = palette_theme(v * 0.35 + 0.5 + t * 0.03, u.theme);
+  col += rainbow(v * 0.2 + u.theme * 0.05) * 0.35;
+  return col;
+}
+
+fn play_lava_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time * 0.7;
+  let st = uv_in;
+  let size = 0.22;
+  let b1 = smoothstep(size, size * 0.5, length(st - vec2f(0.5 + sin(t) * 0.3, 0.5 + cos(t * 0.7) * 0.3)));
+  let b2 = smoothstep(size * 0.8, size * 0.4, length(st - vec2f(0.5 + cos(t * 0.8) * 0.3, 0.5 + sin(t * 0.9) * 0.3)));
+  let b3 = smoothstep(size * 1.2, size * 0.6, length(st - vec2f(0.5 + sin(t * 1.1) * 0.2, 0.5 + cos(t * 1.3) * 0.2)));
+  let b4 = smoothstep(size * 0.9, size * 0.45, length(st - vec2f(0.5 + cos(t * 0.6) * 0.25, 0.5 + sin(t * 0.5) * 0.25)));
+  var blobs = smoothstep(0.4, 0.6, b1 + b2 + b3 + b4);
+  var col = mix(palette_theme(0.75, u.theme) * 0.35, palette_theme(0.05 + t * 0.02, u.theme), blobs);
+  col = mix(col, holi_powder(1.0) * 1.1, 0.5 + 0.5 * sin(blobs * PI + t));
+  col += rainbow(st.y + t * 0.05) * 0.08;
+  return col;
+}
+
+fn play_aurora_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  let st = uv_in;
+  let x = st.x;
+  let y = st.y;
+  var bands = sin(x * 3.0 + t) * 0.1 + sin(x * 5.0 - t * 0.7) * 0.15 + sin(x * 7.0 + t * 1.3) * 0.1 + 0.5;
+  bands += sin(x * 2.0 + t * 0.1) * sin(t * 0.2) * 0.12;
+  var aurora = exp(-abs(y - bands) * 5.0);
+  aurora += exp(-abs(y - bands) * 10.0) * 0.5;
+  aurora += exp(-abs(y - bands) * 20.0) * 0.25;
+  var col = palette_theme(bands + t * 0.04, u.theme) * aurora * 1.35;
+  col += holi_powder(3.0) * aurora * 0.35;
+  col += holi_powder(0.0) * aurora * 0.2;
+  let stars = pow(hash21(floor(st * 100.0)), 20.0) * (1.0 - aurora);
+  col += vec3f(stars);
+  col += rainbow(x * 0.3) * (1.0 - y) * 0.08;
+  return col;
+}
+
+fn play_galaxy_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  let st = screen_p(uv_in);
+  let r = length(st);
+  let a = atan2(st.y, st.x);
+  let arms = clamp(u.mirrors, 3.0, 8.0);
+  var spiral = 0.0;
+  for (var i = 0; i < 8; i++) {
+    if (f32(i) >= arms) { break; }
+    let arm_angle = a + f32(i) * TAU / arms + r * 2.2 + t * 0.1;
+    var arm = sin(arm_angle) * 0.5 + 0.5;
+    arm = pow(arm, 3.0) * exp(-r * 2.0);
+    spiral += arm;
+  }
+  var stars = 0.0;
+  var star_pos = st * 50.0;
+  for (var i = 0; i < 3; i++) {
+    let n = hash21(floor(star_pos) + f32(i) * 100.0);
+    stars += pow(n, 20.0);
+    star_pos *= 2.0;
+  }
+  let core = exp(-r * 3.0);
+  var col = palette_theme(0.6 + spiral * 0.3, u.theme) * spiral;
+  col += rainbow(a / TAU + t * 0.02) * stars * 0.9;
+  col += holi_powder(1.0) * core * 0.9;
+  col += palette(hash21(st * 5.0 + t * 0.05)) * (1.0 - r) * 0.2;
+  return col;
+}
+
+fn play_holo_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  let st = uv_in;
+  let wf = 8.0;
+  let wave1 = sin(st.x * wf + t) * 0.5 + 0.5;
+  let wave2 = sin(st.y * wf * 0.7 + t * 1.3) * 0.5 + 0.5;
+  let wave3 = sin((st.x + st.y) * wf * 0.5 + t * 0.8) * 0.5 + 0.5;
+  let interference = wave1 * wave2 * wave3;
+  let hue = interference + st.x * 0.3 + st.y * 0.2 + t * 0.1;
+  var col = palette_theme(hue, u.theme);
+  col += rainbow(hue * 1.2) * 0.35;
+  let sheen = pow(wave1 * wave2, 2.0);
+  col += vec3f(sheen) * 0.2;
+  let sparkle = pow(hash21(floor(st * 100.0) + floor(t * 10.0)), 20.0);
+  col += vec3f(sparkle);
+  col *= 1.0 - length(st - 0.5) * 0.45;
+  return col;
+}
+
+fn play_waves_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  let st = uv_in;
+  let m = u.mouse;
+  var wave = 0.0;
+  let count = 6.0;
+  for (var i = 0; i < 10; i++) {
+    if (f32(i) >= count) { break; }
+    let fi = f32(i);
+    let center = vec2f(0.5 + 0.4 * sin(t * 0.3 + fi), 0.5 + 0.4 * cos(t * 0.3 + fi * 1.3));
+    wave += sin(distance(st, center) * 20.0 - t * 2.2) / (fi + 1.0);
+  }
+  wave += sin(distance(st, m) * 30.0 - t * 3.3);
+  var col = palette_theme(0.5 + 0.35 * wave, u.theme);
+  col += rainbow(wave * 0.15 + t * 0.03) * 0.4;
+  return col;
+}
+
+fn play_voronoi_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time * 0.8;
+  var st = uv_in * mix(4.0, 7.0, fract(u.seed));
+  // Mild kaleido so it matches Holi vibe
+  let p0 = screen_p(uv_in);
+  let folded = kaleido(p0, max(u.mirrors, 3.0));
+  st = (folded * 0.5 + 0.5) * 5.5;
+  let i_st = floor(st);
+  let f_st = fract(st);
+  var m_dist = 1.0;
+  var m_point = vec2f(0.0);
+  for (var y = -1; y <= 1; y++) {
+    for (var x = -1; x <= 1; x++) {
+      let neighbor = vec2f(f32(x), f32(y));
+      var point = hash22(i_st + neighbor);
+      point = 0.5 + 0.5 * sin(t + TAU * point);
+      let diff = neighbor + point - f_st;
+      let dist = length(diff);
+      if (dist < m_dist) {
+        m_dist = dist;
+        m_point = point;
+      }
+    }
+  }
+  var col = palette_theme(m_dist * 1.2 + m_point.x * 0.4 + t * 0.02, u.theme);
+  col += holi_powder(floor(m_point.y * 7.0)) * (1.0 - m_dist) * 0.55;
+  col += rainbow(m_point.x + m_point.y) * soft_glow(m_dist - 0.15, 12.0) * 0.5;
+  return col;
+}
+
+fn play_neon_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  var st = uv_in * 2.0 - 1.0;
+  st.y = st.y * 0.5 + 0.5;
+  let perspective = st.y * 0.5 + 0.15;
+  st.x /= max(perspective, 0.05);
+  st = st * 0.5 + 0.5;
+  st.y += t * 0.12;
+  let grid = fract(st * 12.0);
+  let lw = 0.06;
+  let line_x = smoothstep(0.0, lw, grid.x) * smoothstep(1.0, 1.0 - lw, grid.x);
+  let line_y = smoothstep(0.0, lw, grid.y) * smoothstep(1.0, 1.0 - lw, grid.y);
+  let lines = 1.0 - max(line_x, line_y);
+  var col = palette_theme(st.y + t * 0.05, u.theme) * lines * 1.4;
+  col += holi_powder(6.0) * lines * 0.45;
+  col += rainbow(st.x + t * 0.08) * lines * 0.35;
+  col *= 1.0 - clamp(st.y * 0.45, 0.0, 0.85);
+  return col;
+}
+
+// ---- 23 fold_mirror — brogli/Kaleidoscope fold (MIT), Holi generative fill ----
+// https://github.com/brogli/Kaleidoscope — polar slice fold (was texture sample).
+fn fold_mirror_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  var position = screen_p(uv_in) * 1.35;
+  let r = length(position);
+  var angle = atan2(position.x, position.y);
+  if (angle < 0.0) { angle += TAU; }
+  let slices = max(u.mirrors, 3.0);
+  let slice = TAU / slices;
+  angle = mod1(angle, slice);
+  angle = abs(angle - 0.5 * slice);
+  angle += t * 0.15 + u.seed;
+  position = vec2f(cos(angle), sin(angle)) * r;
+  // brogli bounce fold
+  position = max(min(position, 2.0 - position), -position);
+  // Generative Holi fill instead of sampling a scene texture
+  let q = position * 0.8;
+  let pattern = sin(q.x * 6.0 + t) * cos(q.y * 6.0 - t * 0.7)
+    + sin(length(q) * 10.0 - t * 1.5);
+  var col = palette_theme(pattern * 0.12 + angle * 0.1 + t * 0.04, u.theme);
+  col += holi_powder(floor(pattern * 2.0 + 4.0)) * 0.4;
+  col += rainbow(r * 0.4 + t * 0.05) * soft_glow(abs(pattern) - 0.3, 4.0) * 0.55;
+  col += palette(0.2) * (0.08 / (r + 0.2));
+  return col;
+}
+
 @fragment
 fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
   let lo = i32(floor(u.layout_mode + 0.5));
@@ -1012,6 +1390,19 @@ fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
     case 8: { col = reflect_effect(uv_in); }
     case 9: { col = bubble_effect(uv_in); }
     case 10: { col = gulal_pulse_effect(uv_in); }
+    case 11: { col = rainbow_nest_effect(uv_in); }
+    case 12: { col = glass_shard_effect(uv_in); }
+    case 13: { col = dream_fold_effect(uv_in); }
+    case 14: { col = play_kaleido_effect(uv_in); }
+    case 15: { col = play_plasma_effect(uv_in); }
+    case 16: { col = play_lava_effect(uv_in); }
+    case 17: { col = play_aurora_effect(uv_in); }
+    case 18: { col = play_galaxy_effect(uv_in); }
+    case 19: { col = play_holo_effect(uv_in); }
+    case 20: { col = play_waves_effect(uv_in); }
+    case 21: { col = play_voronoi_effect(uv_in); }
+    case 22: { col = play_neon_effect(uv_in); }
+    case 23: { col = fold_mirror_effect(uv_in); }
     default: { col = flock_effect(uv_in); }
   }
   return finish(col);
