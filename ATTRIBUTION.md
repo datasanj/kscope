@@ -48,8 +48,17 @@ From the Shaderfuse port of cdV3DW:
 - `hsv2rgb`: WTFPL — unused (Holi powders instead)
 - Unknown hash → Dave Hoskins **MIT** in kscope
 
+## gulal_pulse — original (inspired by Quasar aesthetic)
+
+- HUD: `gulal_pulse`
+- Inspired by the **radial-ring aesthetic** of **[Quasar](https://www.shadertoy.com/view/msGyzc)** by **kishimisu**
+- Upstream Quasar is **CC BY-NC-SA** — **not** pasted, translated, or line-ported
+- kscope ships an **original** WGSL concentric / pulsing Holi energy-ring effect
+- Color uses Holi powders + Inigo Quilez **cosine palette** (**MIT**) — not Quasar’s color code
+
 ## Other
 
 - Dave Hoskins “Hash without Sine” — **MIT** — https://www.shadertoy.com/view/4djSRW
+- Inigo Quilez cosine palette — **MIT** — https://iquilezles.org/articles/palettes/
 - Electric Sheep / flam3 aesthetic (closed-form UV ideas only in retired classic path)
 - Dual-effect transition composites are original to kscope

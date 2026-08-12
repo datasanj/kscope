@@ -1,6 +1,6 @@
 // Holi kaleidoscope inspired by Electric Sheep (screensaver) — fragment-only, 4K@120 friendly.
-// Units are effects (not effect).
-// Colorful layouts only (flock/truchet + 8 shippable shaders). Boring kaleido/tunnel/hybrid gone.
+// Units are effects (not sheep).
+// Colorful layouts only (flock/truchet + 8 shippable shaders + gulal_pulse). Boring kaleido/tunnel/hybrid gone.
 // See ATTRIBUTION.md for titles, authors, URLs, licenses.
 
 struct Uniforms {
@@ -12,7 +12,7 @@ struct Uniforms {
   mirrors: f32,
   intensity: f32,
   // 0 flock, 1 truchet, 2 starnest, 3 golden, 4 logspiral,
-  // 5 apollo, 6 eel, 7 eelaudio, 8 reflect, 9 bubble
+  // 5 apollo, 6 eel, 7 eelaudio, 8 reflect, 9 bubble, 10 gulal_pulse
   layout_mode: f32,
   ring_amount: f32,
   // 0..1 faux/mic audio drive for eelaudio; unused otherwise
@@ -117,6 +117,12 @@ fn palette_theme(t: f32, theme: f32) -> vec3f {
 
 fn palette(t: f32) -> vec3f {
   return palette_theme(t, u.theme);
+}
+
+// Cosine palette — Inigo Quilez (MIT) — https://iquilezles.org/articles/palettes/
+// Used for gulal_pulse multi-hue lanes; Holi powders still dominate the mix.
+fn iq_cos_palette(t: f32, a: vec3f, b: vec3f, c: vec3f, d: vec3f) -> vec3f {
+  return a + b * cos(TAU * (c * t + d));
 }
 
 fn kaleido(p: vec2f, segments: f32) -> vec2f {
@@ -939,6 +945,58 @@ fn bubble_effect(uv_in: vec2f) -> vec3f {
   return col;
 }
 
+// ---- 10 gulal_pulse — original Holi radial energy rings ----
+// Inspired by the *feel* of concentric / radial-ring energy (kishimisu Quasar,
+// Shadertoy msGyzc). Clean-room WGSL — not a paste, translate, or line-port.
+// Upstream Quasar is CC BY-NC-SA; do not vendor its GLSL. See ATTRIBUTION.md.
+
+fn gulal_pulse_effect(uv_in: vec2f) -> vec3f {
+  let t = u.time;
+  var p = screen_p(uv_in);
+  // Slow orbital drift + kaleido wedges from genome mirrors
+  p = rotate2(p, t * 0.055 + u.seed * 0.31);
+  p = kaleido(p, max(u.mirrors, 3.0));
+
+  let r = length(p);
+  let ang = atan2(p.y, p.x);
+  // Breathing shell spacing — hypnotic center pull without copying Quasar
+  let breath = 0.5 + 0.5 * sin(t * 1.05 + u.seed * 1.7);
+  let shell_n = mix(4.8, 8.2, breath);
+  let wave = r * shell_n - t * (1.35 + 0.25 * breath);
+
+  // Soft concentric shells + a slower secondary pulse
+  var rings = exp(-7.5 * abs(sin(wave)));
+  rings += 0.5 * exp(-11.0 * abs(sin(wave * 0.5 + ang * 0.35)));
+  rings += 0.32 * exp(-16.0 * abs(fract(r * mix(2.6, 4.8, breath) - t * 0.38) - 0.5) * 2.0);
+
+  // Mild radial filaments (energy spokes), mirror-count driven
+  let spokes = exp(-5.5 * abs(sin(ang * max(u.mirrors, 3.0) - r * 2.4 + t * 0.9)));
+
+  // Bright soft core
+  let core = 0.14 / (r * r * 16.0 + 0.07);
+
+  // Multi-hue: IQ cosine lanes (MIT) remixed with Holi powders — loud rainbow, not cyan-only
+  let hue = r * 0.52 - t * 0.07 + ang / TAU + u.seed * 0.03;
+  let cos_col = iq_cos_palette(
+    hue,
+    vec3f(0.55, 0.48, 0.55),
+    vec3f(0.55, 0.50, 0.55),
+    vec3f(1.0, 1.0, 0.95),
+    vec3f(0.00, 0.33, 0.67),
+  );
+  var col = mix(cos_col, palette_theme(hue, u.theme), 0.62);
+  col += holi_powder(floor(hue * 7.0 + 1.0)) * 0.38;
+  col += rainbow(hue * 1.4 + 0.2) * 0.22;
+
+  col *= rings * 1.4 + spokes * 0.42;
+  col += palette_theme(hue + 0.18, u.theme) * core * 1.15;
+  // Outer storm ring from ring_amount genome
+  col += palette(hue + 0.45) * soft_glow(r - (0.78 + 0.12 * sin(t * 0.6)), 4.2) * u.ring_amount * 0.5;
+  // Soft falloff glow toward edges
+  col += rainbow(ang / TAU + t * 0.04) * (0.05 / (r + 0.22)) * 0.55;
+  return col;
+}
+
 @fragment
 fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
   let lo = i32(floor(u.layout_mode + 0.5));
@@ -953,6 +1011,7 @@ fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
     case 7: { col = eelaudio_effect(uv_in); }
     case 8: { col = reflect_effect(uv_in); }
     case 9: { col = bubble_effect(uv_in); }
+    case 10: { col = gulal_pulse_effect(uv_in); }
     default: { col = flock_effect(uv_in); }
   }
   return finish(col);

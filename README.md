@@ -20,6 +20,7 @@ Fragment-only effects; dual-texture transitions only while morphing; no IFS hist
 | `eelaudio` | Eel audio fork — faux beat, optional mic |
 | `reflect` | Let’s self reflect (CC0) — quality-gated mirrors |
 | `bubble` | Reflective bubble tunnel (CC0 mrange) |
+| `gulal_pulse` | Original Holi radial energy rings (inspired by Quasar *feel*; not a port) |
 
 Dual-effect transitions: **hex** (default when flock involved) · **iris** · **wedge** · **storm**.
 
@@ -44,7 +45,7 @@ Heavy layouts (`starnest`, `reflect`, `bubble`, eels) use iteration caps; HQ rai
 | `1`–`6` | Pin Holi bias (still multi-hue) |
 | `T` | Next effect dual fade |
 | `X` / `M` | Cycle mix mode (hex→iris→wedge→storm) |
-| `F` flock · `U` truchet · `S` starnest · `G` golden · `L` logspiral · `P` apollo · `E` eel · `J` eelaudio · `Y` reflect · `B` bubble | Jump layout |
+| `F` flock · `U` truchet · `S` starnest · `G` golden · `L` logspiral · `P` apollo · `E` eel · `J` eelaudio · `Y` reflect · `B` bubble · `H` gulal_pulse | Jump layout |
 | `A` | Toggle optional mic for `eelaudio` (fallback: time faux-beat) |
 | `Q` / `V` | Dual res / raymarch quality |
 | `R` | Remix + jump morph |
@@ -59,6 +60,7 @@ Highlights:
 - Mandala flowers — mrange **CC0** — https://www.shadertoy.com/view/NlcSRB (via glsl-to-mp4)
 - Star Nest — Kali **MIT** — prefer [`references/StarNest.md`](./references/StarNest.md) (not Shadertoy.com); credit https://www.shadertoy.com/view/XlfGRj
 - Apollian with a twist / Electric Eel — mrange **CC0** (Shaderfuse ports)
+- `gulal_pulse` — original; inspired by kishimisu Quasar (msGyzc) radial-ring *feel*; upstream **NC-SA** — not a port
 - Do **not** paste Truchet 7lKSWW or NC-SA material
 
 ## Run

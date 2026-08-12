@@ -31,13 +31,14 @@ const LAYOUTS = [
   { id: 7, name: "eelaudio" },
   { id: 8, name: "reflect" },
   { id: 9, name: "bubble" },
+  { id: 10, name: "gulal_pulse" },
 ];
 
 const LAYOUT_FLOCK = 0;
 const LAYOUT_TRUCHET = 1;
 
-// Auto: cycle the colorful flock (existing + 8 newcomers)
-const LAYOUT_SEQ = [0, 2, 1, 5, 3, 6, 4, 9, 8, 7, 0, 5, 2, 1, 3, 6, 4, 9];
+// Auto: cycle colorful effects (flock + 8 ports + gulal_pulse)
+const LAYOUT_SEQ = [0, 2, 10, 1, 5, 3, 6, 4, 9, 8, 7, 10, 0, 5, 2, 1, 3, 6, 4, 9];
 
 const MIRROR_SEQ = [3, 4, 5, 6, 4, 8, 5, 3, 7, 4, 6, 5, 4, 3];
 
@@ -575,7 +576,7 @@ async function init() {
     } else if (e.key === "a" || e.key === "A") {
       // Optional mic for eelaudio — safe no-op if denied/unavailable
       toggleMicAudio();
-    } else if ("fuglesby".includes(e.key.toLowerCase()) && e.key.length === 1) {
+    } else if ("fuglesbyh".includes(e.key.toLowerCase()) && e.key.length === 1) {
       const map = {
         f: 0, // flock
         u: 1, // truchet
@@ -585,6 +586,7 @@ async function init() {
         e: 6, // eel
         b: 9, // bubble
         y: 8, // reflect (self)
+        h: 10, // gulal_pulse
       };
       const k = e.key.toLowerCase();
       if (map[k] != null) jumpToLayout(map[k]);
