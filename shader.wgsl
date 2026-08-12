@@ -64,7 +64,8 @@ fn rainbow(t: f32) -> vec3f {
   let s = f * f * (3.0 - 2.0 * f);
   let a = holi_powder(i);
   let b = holi_powder(i + 1.0);
-  return mix(a, b, s) * 0.92 + vec3f(0.04, 0.02, 0.03);
+  // Punchy gulal — slight lift, still short of whiteout
+  return mix(a, b, s) * 1.05 + vec3f(0.03, 0.015, 0.025);
 }
 
 fn palette_theme(t: f32, theme: f32) -> vec3f {
