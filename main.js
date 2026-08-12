@@ -2,8 +2,8 @@ const canvas = document.getElementById("gpu");
 const statsEl = document.getElementById("stats");
 const fallback = document.getElementById("fallback");
 
-// Sheep uniforms: resolution(2) time seed mouse(2) theme mirrors intensity layout ring pad
-const SHEEP_FLOATS = 12;
+// Sheep uniforms: res(2) time seed mouse(2) theme mirrors intensity layout ring audio quality pad
+const SHEEP_FLOATS = 16;
 const SHEEP_BYTES = SHEEP_FLOATS * 4;
 
 // Composite: resolution(2) progress mode time seed mirrorsA mirrorsB morph pad(3)
@@ -19,17 +19,25 @@ const THEMES = [
   { id: 5, name: "neela" },
 ];
 
-// Only the riotously colorful survivors — boring kaleido/tunnel/hybrid removed
+// Colorful survivors only — boring kaleido/tunnel/hybrid stay gone
 const LAYOUTS = [
   { id: 0, name: "flock" },
   { id: 1, name: "truchet" },
+  { id: 2, name: "starnest" },
+  { id: 3, name: "golden" },
+  { id: 4, name: "logspiral" },
+  { id: 5, name: "apollo" },
+  { id: 6, name: "eel" },
+  { id: 7, name: "eelaudio" },
+  { id: 8, name: "reflect" },
+  { id: 9, name: "bubble" },
 ];
 
 const LAYOUT_FLOCK = 0;
 const LAYOUT_TRUCHET = 1;
 
-// Auto rotation: flock ↔ truchet only
-const LAYOUT_SEQ = [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1];
+// Auto: cycle the colorful flock (existing + 8 newcomers)
+const LAYOUT_SEQ = [0, 2, 1, 5, 3, 6, 4, 9, 8, 7, 0, 5, 2, 1, 3, 6, 4, 9];
 
 const MIRROR_SEQ = [3, 4, 5, 6, 4, 8, 5, 3, 7, 4, 6, 5, 4, 3];
 
@@ -75,6 +83,10 @@ const state = {
   ringAmount: 0,
   // Quality: dual half-res during transitions (toggle with Q)
   dualHalfRes: true,
+  // Raymarch quality inside heavy layouts (toggle with V)
+  highQuality: false,
+  audioLevel: 0,
+  audioEnabled: false,
   presentMode: "default",
   layoutIdx: 0,
   themeIdx: 0,
@@ -219,7 +231,59 @@ function ringLabel() {
 }
 
 function qualityLabel() {
-  return state.dualHalfRes ? "½res×2" : "full×2";
+  const dual = state.dualHalfRes ? "½res×2" : "full×2";
+  const rq = state.highQuality ? "HQ" : "LQ";
+  return `${dual}/${rq}`;
+}
+
+
+function jumpToLayout(layoutId) {
+  for (let i = 0; i < LAYOUT_SEQ.length * 3; i++) {
+    state.time += SHEEP_DWELL + SHEEP_FADE;
+    updateGenome(0);
+    if (state.sheepA.layout === layoutId && state.sheepMix < 0.05) break;
+  }
+}
+
+let audioCtx = null;
+let analyser = null;
+let audioData = null;
+async function toggleMicAudio() {
+  try {
+    if (state.audioEnabled && audioCtx) {
+      await audioCtx.close();
+      audioCtx = null;
+      analyser = null;
+      state.audioEnabled = false;
+      state.audioLevel = 0;
+      return;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    audioData = new Uint8Array(analyser.frequencyBinCount);
+    state.audioEnabled = true;
+  } catch (err) {
+    console.warn("Mic audio unavailable — eelaudio uses time-driven faux beat.", err);
+    state.audioEnabled = false;
+  }
+}
+
+function sampleAudioLevel() {
+  if (!state.audioEnabled || !analyser || !audioData) {
+    // Faux reactivity always available for eelaudio layout
+    const faux = 0.55 + 0.45 * Math.sin(state.time * 2.7) * Math.sin(state.time * 1.3 + 1.7);
+    state.audioLevel = state.sheepA.layout === 7 || state.sheepB.layout === 7 ? faux * 0.85 : 0;
+    return;
+  }
+  analyser.getByteFrequencyData(audioData);
+  let sum = 0;
+  const n = Math.min(32, audioData.length);
+  for (let i = 0; i < n; i++) sum += audioData[i];
+  state.audioLevel = Math.min(1.2, (sum / n / 255) * 1.8);
 }
 
 async function init() {
@@ -429,7 +493,11 @@ async function init() {
     arr[8] = state.intensity;
     arr[9] = sheep.layout;
     arr[10] = state.ringAmount;
-    arr[11] = 0;
+    arr[11] = state.audioLevel;
+    arr[12] = state.highQuality ? 1 : 0;
+    arr[13] = 0;
+    arr[14] = 0;
+    arr[15] = 0;
     device.queue.writeBuffer(buf, 0, arr);
   }
 
@@ -502,20 +570,28 @@ async function init() {
       rtB?.destroy();
       rtA = rtB = null;
       rtW = rtH = 0;
-    } else if (e.key === "f" || e.key === "F") {
-      // Jump to flock (Mandala flowers)
-      for (let i = 0; i < LAYOUT_SEQ.length * 2; i++) {
-        state.time += SHEEP_DWELL + SHEEP_FADE;
-        updateGenome(0);
-        if (state.sheepA.layout === LAYOUT_FLOCK && state.sheepMix < 0.05) break;
-      }
-    } else if (e.key === "u" || e.key === "U") {
-      // Jump to truchet
-      for (let i = 0; i < LAYOUT_SEQ.length * 2; i++) {
-        state.time += SHEEP_DWELL + SHEEP_FADE;
-        updateGenome(0);
-        if (state.sheepA.layout === LAYOUT_TRUCHET && state.sheepMix < 0.05) break;
-      }
+    } else if (e.key === "v" || e.key === "V") {
+      state.highQuality = !state.highQuality;
+    } else if (e.key === "a" || e.key === "A") {
+      // Optional mic for eelaudio — safe no-op if denied/unavailable
+      toggleMicAudio();
+    } else if ("fuglesby".includes(e.key.toLowerCase()) && e.key.length === 1) {
+      const map = {
+        f: 0, // flock
+        u: 1, // truchet
+        s: 2, // starnest
+        g: 3, // golden
+        l: 4, // logspiral
+        e: 6, // eel
+        b: 9, // bubble
+        y: 8, // reflect (self)
+      };
+      const k = e.key.toLowerCase();
+      if (map[k] != null) jumpToLayout(map[k]);
+    } else if (e.key === "p" || e.key === "P") {
+      jumpToLayout(5); // apollo
+    } else if (e.key === "j" || e.key === "J") {
+      jumpToLayout(7); // eelaudio
     } else if (e.key === "+" || e.key === "=") {
       state.intensity = Math.min(1.8, state.intensity + 0.06);
     } else if (e.key === "-" || e.key === "_") {

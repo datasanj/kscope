@@ -1,32 +1,65 @@
 # kscope
 
 WebGPU Holi-powder kaleidoscope — a living flock of Electric Sheep–inspired
-mandalas, built for high resolution and high refresh (4K @ 120Hz class hardware).
+colorful shaders, built for high resolution / high refresh (4K @ 120Hz class).
 
-Fragment-only sheep, dual-texture transitions only while morphing, no IFS histogram.
+Fragment-only sheep; dual-texture transitions only while morphing; no IFS histogram.
+**Boring kaleido / thin tunnel / hybrid layouts are gone.**
 
-## What runs on the GPU
+## Layouts (auto-cycled)
 
-**Colorful layouts only** (boring sparse kaleido / thin tunnel / hybrid removed):
+| HUD name | What |
+| --- | --- |
+| `flock` | Mandala flowers hex field (CC0 mrange) |
+| `truchet` | Polar-fold + Truchet cells (idea-only Holi) |
+| `starnest` | Star Nest kaliset volume (MIT Kali) → Holi |
+| `golden` | Golden apollian (CC0 mrange) → Holi/φ |
+| `logspiral` | Log spiral of spheres (CC0 mrange) → Holi |
+| `apollo` | Apollian with a twist (CC0 mrange) |
+| `eel` | Electric Eel Universe (CC0 mrange) |
+| `eelaudio` | Eel audio fork — faux beat, optional mic |
+| `reflect` | Let’s self reflect (CC0) — quality-gated mirrors |
+| `bubble` | Reflective bubble tunnel (CC0 mrange) |
 
-- **flock** — Mandala flowers hex field (CC0 mrange) with riot Holi powder on every petal & glow
-- **truchet** — original polar-fold + cell arcs, multi-hue Holi lanes (idea-only; not a 7lKSWW paste)
+Dual-sheep transitions: **hex** (default when flock involved) · **iris** · **wedge** · **storm**.
 
-Also:
+Holi gulal rainbow on everything (gulabi / laal / kesar / hari / **rang** default / neela). Filmic ceiling avoids whiteout.
 
-- **Dual-sheep transitions** — A and B both advance in time, then composite:
-  **hex cell takeover** (default when flock is involved) · **polar iris** · **kaleido wedge** · **additive storm**
-- Genome morph underneath (mirrors / palette seeds lerp during the blend)
-- Holi gulal rainbow on everything: gulabi / laal / kesar / hari / **rang** (default bias) / neela — pinned themes still show multiple powders, never monochrome
-- Mouse parallax, episodic ring energy, dual half-res quality toggle (`Q`)
+## Quality
+
+| Key | Effect |
+| --- | --- |
+| `Q` | Dual-transition half-res (default) ↔ full dual |
+| `V` | Raymarch **LQ** (default, 4K-friendlier) ↔ **HQ** caps |
+
+Heavy layouts (`starnest`, `reflect`, `bubble`, eels) use iteration caps; HQ raises them.
+
+## Controls
+
+| Input | Action |
+| --- | --- |
+| Mouse | Parallax / orbit |
+| Click | Remix seed |
+| `0` | Auto Holi themes (rang-heavy) |
+| `1`–`6` | Pin Holi bias (still multi-hue) |
+| `T` | Next sheep dual fade |
+| `X` / `M` | Cycle mix mode (hex→iris→wedge→storm) |
+| `F` flock · `U` truchet · `S` starnest · `G` golden · `L` logspiral · `P` apollo · `E` eel · `J` eelaudio · `Y` reflect · `B` bubble | Jump layout |
+| `A` | Toggle optional mic for `eelaudio` (fallback: time faux-beat) |
+| `Q` / `V` | Dual res / raymarch quality |
+| `R` | Remix + jump morph |
+| Space · `+`/`-` | Pause · intensity |
 
 ## Attribution
 
-See **[ATTRIBUTION.md](./ATTRIBUTION.md)** for the full helper-license table.
+Full titles, authors, URLs, licenses: **[ATTRIBUTION.md](./ATTRIBUTION.md)**.
 
-- **Flock / Mandala flowers:** adapted from [Mandala flowers](https://www.shadertoy.com/view/NlcSRB) by **Mårten Rånge (mrange)** — **CC0** (shader header typo `CCO`). Source ingested from [`nabeel-oz/glsl-to-mp4`](https://github.com/nabeel-oz/glsl-to-mp4) `references/MandalaFlowers.md` (not live Shadertoy.com).
-- Prefer CC0 + MIT helpers from that listing; unknown `hash` / Art of Code `hextile` were **rewritten**; Holi palettes replace `hsv2rgb`.
-- **Truchet layout:** original WGSL inspired by the *idea* of [7lKSWW](https://www.shadertoy.com/view/7lKSWW) — **do not paste** that shader; license unconfirmed for commercial reuse.
+Highlights:
+
+- Mandala flowers — mrange **CC0** — https://www.shadertoy.com/view/NlcSRB (via glsl-to-mp4)
+- Star Nest — Kali **MIT** — https://www.shadertoy.com/view/XlfGRj
+- Apollian with a twist / Electric Eel — mrange **CC0** (Shaderfuse ports)
+- Do **not** paste Truchet 7lKSWW or NC-SA material
 
 ## Run
 
@@ -34,32 +67,4 @@ See **[ATTRIBUTION.md](./ATTRIBUTION.md)** for the full helper-license table.
 npm start
 ```
 
-Open `http://localhost:8787` in Chrome / Edge (WebGPU). Live: [kscope.pages.dev](https://kscope.pages.dev).
-
-## Controls
-
-| Input | Action |
-| --- | --- |
-| Move mouse | Strong parallax / orbit / swirl |
-| Click | Remix palette seed |
-| `0` | Auto theme transitions (rang-heavy Holi riot; default) |
-| `1`–`6` | Pin Holi bias: gulabi / laal / kesar / hari / rang / neela (still multi-hue) |
-| `T` | Jump toward next sheep morph (flock ↔ truchet dual transition) |
-| `X` | Jump into transition + cycle mix mode (hex → iris → wedge → storm) |
-| `M` | Pin / cycle mix mode without jumping |
-| `F` | Jump to **flock** (Mandala flowers) |
-| `U` | Jump to **truchet** |
-| `C` | Jump toward next ring episode |
-| `Q` | Toggle dual-transition quality: half-res (default) ↔ full-res |
-| `R` | Remix seed + jump toward next morph |
-| Space | Pause |
-| `+` / `-` | Intensity |
-
-### Trying each transition
-
-1. Press `M` until the HUD mix name shows the mode you want (`hex` / `iris` / `wedge` / `storm`), or use `X` to jump + cycle.
-2. Press `T` (or wait for auto sheep dwell ~11s) to enter a dual-render crossfade.
-3. For **hex takeover**, press `F` first (hex is also auto-preferred whenever flock is in the A/B pair).
-4. Watch the HUD: during a fade it shows the mix name and `½res×2` or `full×2`.
-
-Auto mode only cycles **flock** and **truchet** — never the removed sparse layouts.
+Open `http://localhost:8787` (Chrome / Edge WebGPU). Live: https://kscope.pages.dev
