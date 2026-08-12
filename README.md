@@ -1,20 +1,24 @@
 # kscope
 
-WebGPU kaleidoscope inspired by [kishimisu’s shader art intro](https://www.youtube.com/watch?v=f4s1h2YETNY) and the dreamy neon aesthetic of [Electric Sheep](https://electricsheep.org) / [flam3](https://github.com/scottdraves/flam3).
+WebGPU Holi-powder kaleidoscope — a living flock of Electric Sheep–inspired
+mandalas, built for high resolution and high refresh (4K @ 120Hz class hardware).
 
-Built for **high resolution and high refresh** (4K @ 120Hz class hardware): fragment-only sheep, dual-texture transitions only while morphing, no IFS histogram.
+Fragment-only sheep, dual-texture transitions only while morphing, no IFS histogram.
 
 ## What runs on the GPU
 
-- Layouts: **kaleido** · **polar tunnel** · **hybrid** · **flock** (Mandala flowers hex field) · **truchet** (original polar-fold + cell arcs)
-- **Dual-sheep transitions** — current genome A and next genome B both advance in time, rendered to textures, then composited (not a boring global alpha dissolve as the only mode)
-- Mix modes: **hex cell takeover** (default when flock is involved) · **polar iris / tunnel swallow** · **kaleido wedge wipe** · **additive storm**
-- Genome morph underneath: mirrors / petal feel / palette seeds lerp during the blend
-- Holi gulal powder palettes (gulabi / laal / kesar / hari / rang / neela)
-- Mouse parallax, episodic quiet / sparse / storm rings, flam3 UV warps
-- Quality toggle: dual half-res during transitions (default) vs full dual (`Q`) — dual full shaders at 4K are heavy; half-res keeps FPS sane
+**Colorful layouts only** (boring sparse kaleido / thin tunnel / hybrid removed):
 
-Intentionally **not** ported from Electric Sheep: chaos-game IFS accumulation, density estimation filters, and heavy tone-mapping passes.
+- **flock** — Mandala flowers hex field (CC0 mrange) with riot Holi powder on every petal & glow
+- **truchet** — original polar-fold + cell arcs, multi-hue Holi lanes (idea-only; not a 7lKSWW paste)
+
+Also:
+
+- **Dual-sheep transitions** — A and B both advance in time, then composite:
+  **hex cell takeover** (default when flock is involved) · **polar iris** · **kaleido wedge** · **additive storm**
+- Genome morph underneath (mirrors / palette seeds lerp during the blend)
+- Holi gulal rainbow on everything: gulabi / laal / kesar / hari / **rang** (default bias) / neela — pinned themes still show multiple powders, never monochrome
+- Mouse parallax, episodic ring energy, dual half-res quality toggle (`Q`)
 
 ## Attribution
 
@@ -30,7 +34,7 @@ See **[ATTRIBUTION.md](./ATTRIBUTION.md)** for the full helper-license table.
 npm start
 ```
 
-Open `http://localhost:8787` in Chrome / Edge (WebGPU).
+Open `http://localhost:8787` in Chrome / Edge (WebGPU). Live: [kscope.pages.dev](https://kscope.pages.dev).
 
 ## Controls
 
@@ -38,13 +42,13 @@ Open `http://localhost:8787` in Chrome / Edge (WebGPU).
 | --- | --- |
 | Move mouse | Strong parallax / orbit / swirl |
 | Click | Remix palette seed |
-| `0` | Auto theme transitions (default) |
-| `1`–`6` | Pin Holi mix: gulabi / laal / kesar / hari / rang / neela |
-| `T` | Jump toward next sheep / layout morph (triggers dual transition) |
+| `0` | Auto theme transitions (rang-heavy Holi riot; default) |
+| `1`–`6` | Pin Holi bias: gulabi / laal / kesar / hari / rang / neela (still multi-hue) |
+| `T` | Jump toward next sheep morph (flock ↔ truchet dual transition) |
 | `X` | Jump into transition + cycle mix mode (hex → iris → wedge → storm) |
 | `M` | Pin / cycle mix mode without jumping |
-| `F` | Jump to **flock** (Mandala flowers) sheep |
-| `U` | Jump to **truchet** sheep |
+| `F` | Jump to **flock** (Mandala flowers) |
+| `U` | Jump to **truchet** |
 | `C` | Jump toward next ring episode |
 | `Q` | Toggle dual-transition quality: half-res (default) ↔ full-res |
 | `R` | Remix seed + jump toward next morph |
@@ -55,7 +59,7 @@ Open `http://localhost:8787` in Chrome / Edge (WebGPU).
 
 1. Press `M` until the HUD mix name shows the mode you want (`hex` / `iris` / `wedge` / `storm`), or use `X` to jump + cycle.
 2. Press `T` (or wait for auto sheep dwell ~11s) to enter a dual-render crossfade.
-3. For **hex takeover**, press `F` first so a flock sheep is involved (hex is also auto-preferred whenever flock is in the A/B pair).
+3. For **hex takeover**, press `F` first (hex is also auto-preferred whenever flock is in the A/B pair).
 4. Watch the HUD: during a fade it shows the mix name and `½res×2` or `full×2`.
 
-Auto mode also rotates layouts through flock and truchet on its own; dual transitions fire whenever the sheep genome slot advances.
+Auto mode only cycles **flock** and **truchet** — never the removed sparse layouts.

@@ -19,20 +19,25 @@ const THEMES = [
   { id: 5, name: "neela" },
 ];
 
+// Only the riotously colorful survivors — boring kaleido/tunnel/hybrid removed
 const LAYOUTS = [
-  { id: 0, name: "kaleido" },
-  { id: 1, name: "tunnel" },
-  { id: 2, name: "hybrid" },
-  { id: 3, name: "flock" },
-  { id: 4, name: "truchet" },
+  { id: 0, name: "flock" },
+  { id: 1, name: "truchet" },
 ];
 
-// Prefer flock / hybrid / truchet — living field of sheep
-const LAYOUT_SEQ = [3, 2, 4, 3, 1, 3, 2, 0, 4, 3, 2, 1, 3, 4];
+const LAYOUT_FLOCK = 0;
+const LAYOUT_TRUCHET = 1;
+
+// Auto rotation: flock ↔ truchet only
+const LAYOUT_SEQ = [0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1];
 
 const MIRROR_SEQ = [3, 4, 5, 6, 4, 8, 5, 3, 7, 4, 6, 5, 4, 3];
 
-const RING_SEQ = [0, 0, 1, 0, 2, 0, 0, 1, 2, 0, 1, 0];
+// Bias toward colorful ring energy (less empty quiet)
+const RING_SEQ = [1, 2, 1, 2, 0, 1, 2, 1, 2, 1, 0, 2];
+
+// Theme auto seq leans on rang (full Holi riot) while still visiting all powders
+const THEME_SEQ = [4, 0, 4, 1, 4, 2, 4, 3, 4, 5, 4, 0, 4, 2];
 
 /** Dual-sheep mix modes */
 const MIX = {
@@ -53,8 +58,8 @@ const state = {
   time: 0,
   seed: Math.random() * 10,
   autoTheme: true,
-  pinnedTheme: 0,
-  intensity: 0.95,
+  pinnedTheme: 4, // rang — full Holi riot default bias
+  intensity: 1.05,
   paused: false,
   mouse: [0.5, 0.5],
   last: performance.now(),
@@ -107,9 +112,9 @@ function stagedPair(time, dwell, fade, sequence, offset = 0) {
 function pickMixMode(layoutA, layoutB) {
   if (state.pinnedMixMode != null) return state.pinnedMixMode;
   // Prefer hex takeover when Mandala flock is involved
-  if (layoutA === 3 || layoutB === 3) return MIX.HEX;
+  if (layoutA === LAYOUT_FLOCK || layoutB === LAYOUT_FLOCK) return MIX.HEX;
   const roll = Math.floor((state.seed * 17 + state.time * 0.3) % 4);
-  // Weight toward iris/wedge over storm
+  // Weight toward iris/wedge/storm color pops
   const weighted = [MIX.IRIS, MIX.WEDGE, MIX.HEX, MIX.STORM, MIX.IRIS, MIX.WEDGE];
   return weighted[roll % weighted.length];
 }
@@ -144,13 +149,12 @@ function updateGenome(dt) {
   const local = t - idx * cycle;
   const mix = local <= SHEEP_DWELL ? 0 : smoothstep(0, SHEEP_FADE, local - SHEEP_DWELL);
 
-  // Stable per-slot genomes from indices
-  const themeIds = THEMES.map((th) => th.id);
+  // Stable per-slot genomes — rang-heavy Holi sequence in auto mode
   const themeA = state.autoTheme
-    ? themeIds[idx % themeIds.length]
+    ? THEME_SEQ[idx % THEME_SEQ.length]
     : state.pinnedTheme;
   const themeB = state.autoTheme
-    ? themeIds[(idx + 1) % themeIds.length]
+    ? THEME_SEQ[(idx + 1) % THEME_SEQ.length]
     : state.pinnedTheme;
 
   const layoutA = LAYOUT_SEQ[idx % LAYOUT_SEQ.length];
@@ -499,19 +503,18 @@ async function init() {
       rtA = rtB = null;
       rtW = rtH = 0;
     } else if (e.key === "f" || e.key === "F") {
-      // Jump to flock (mandala flowers) sheep
-      // Advance until layout A is flock
-      for (let i = 0; i < LAYOUT_SEQ.length; i++) {
+      // Jump to flock (Mandala flowers)
+      for (let i = 0; i < LAYOUT_SEQ.length * 2; i++) {
         state.time += SHEEP_DWELL + SHEEP_FADE;
         updateGenome(0);
-        if (state.sheepA.layout === 3 && state.sheepMix < 0.05) break;
+        if (state.sheepA.layout === LAYOUT_FLOCK && state.sheepMix < 0.05) break;
       }
     } else if (e.key === "u" || e.key === "U") {
-      // Jump to truchet sheep
-      for (let i = 0; i < LAYOUT_SEQ.length; i++) {
+      // Jump to truchet
+      for (let i = 0; i < LAYOUT_SEQ.length * 2; i++) {
         state.time += SHEEP_DWELL + SHEEP_FADE;
         updateGenome(0);
-        if (state.sheepA.layout === 4 && state.sheepMix < 0.05) break;
+        if (state.sheepA.layout === LAYOUT_TRUCHET && state.sheepMix < 0.05) break;
       }
     } else if (e.key === "+" || e.key === "=") {
       state.intensity = Math.min(1.8, state.intensity + 0.06);

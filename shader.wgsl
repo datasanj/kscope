@@ -14,7 +14,7 @@ struct Uniforms {
   theme: f32,
   mirrors: f32,
   intensity: f32,
-  // 0 kaleido, 1 tunnel, 2 hybrid, 3 flock (mandala flowers), 4 truchet
+  // 0 flock (mandala flowers), 1 truchet — boring layouts removed
   layout_mode: f32,
   ring_amount: f32,
   _pad0: f32,
@@ -68,36 +68,45 @@ fn rainbow(t: f32) -> vec3f {
 }
 
 fn palette_theme(t: f32, theme: f32) -> vec3f {
-  var col = rainbow(t) * 0.48
-    + rainbow(t + 0.31) * 0.30
-    + rainbow(t + 0.58) * 0.22;
+  // Always a multi-powder Holi rainbow — never monochrome.
+  // "rang" (full riot) is the base; pinned themes only nudge the bias.
+  var col = rainbow(t) * 0.34
+    + rainbow(t + 0.14) * 0.22
+    + rainbow(t + 0.33) * 0.18
+    + rainbow(t + 0.52) * 0.14
+    + rainbow(t + 0.71) * 0.12;
 
   let th = floor(theme + 0.5);
-  var bias = vec3f(1.0);
+  var bias = vec3f(1.08, 1.02, 1.06); // rang-like default
   var accent = 0.0;
   if (th < 0.5) {
-    bias = vec3f(1.12, 0.82, 1.08);
+    // gulabi — still keep saffron/green/blue sparks
+    bias = vec3f(1.16, 0.90, 1.10);
     accent = 0.05;
   } else if (th < 1.5) {
-    bias = vec3f(1.18, 0.78, 0.88);
+    bias = vec3f(1.18, 0.88, 0.95);
     accent = 0.72;
   } else if (th < 2.5) {
-    bias = vec3f(1.14, 1.02, 0.72);
+    bias = vec3f(1.14, 1.06, 0.82);
     accent = 0.22;
   } else if (th < 3.5) {
-    bias = vec3f(0.78, 1.16, 0.88);
+    bias = vec3f(0.88, 1.16, 0.95);
     accent = 0.42;
   } else if (th < 4.5) {
-    bias = vec3f(1.06, 0.98, 1.04);
+    bias = vec3f(1.10, 1.04, 1.08);
     accent = 0.0;
   } else {
-    bias = vec3f(0.82, 0.88, 1.20);
+    bias = vec3f(0.92, 0.95, 1.18);
     accent = 0.58;
   }
 
   col *= bias;
-  col += rainbow(t * 1.55 + accent + theme * 0.12) * 0.20;
-  col = col / (1.0 + max(col - vec3f(0.95), vec3f(0.0)) * 1.4);
+  // Extra gulal lanes so every theme stays a riot
+  col += rainbow(t * 1.7 + accent) * 0.28;
+  col += rainbow(t * 0.55 + 0.41 + theme * 0.09) * 0.18;
+  col += holi_powder(floor(t * 7.0 + theme + 2.0)) * 0.10;
+  // Soft channel ceiling — vivid powder, not whiteout
+  col = col / (1.0 + max(col - vec3f(0.92), vec3f(0.0)) * 1.55);
   return max(col, vec3f(0.0));
 }
 
@@ -140,171 +149,8 @@ fn mod1(x: f32, y: f32) -> f32 {
   return x - y * floor(x / y);
 }
 
-// --- flam3-inspired closed-form UV variations ---
-
-fn var_sinusoidal(p: vec2f) -> vec2f { return vec2f(sin(p.x), sin(p.y)); }
-
-fn var_spherical(p: vec2f) -> vec2f {
-  let r2 = max(dot(p, p), 1e-4);
-  return p / r2;
-}
-
-fn var_swirl(p: vec2f) -> vec2f {
-  let r2 = dot(p, p);
-  let s = sin(r2);
-  let c = cos(r2);
-  return vec2f(c * p.x - s * p.y, s * p.x + c * p.y);
-}
-
-fn var_horseshoe(p: vec2f) -> vec2f {
-  let r = max(length(p), 1e-4);
-  return vec2f((p.x - p.y) * (p.x + p.y), 2.0 * p.x * p.y) / r;
-}
-
-fn var_polar(p: vec2f) -> vec2f {
-  return vec2f(atan2(p.y, p.x) / PI, length(p) - 1.0);
-}
-
-fn var_handkerchief(p: vec2f) -> vec2f {
-  let r = length(p);
-  let a = atan2(p.y, p.x);
-  return r * vec2f(sin(a + r), cos(a - r));
-}
-
-fn var_heart(p: vec2f) -> vec2f {
-  let r = length(p);
-  let a = atan2(p.y, p.x);
-  let aa = a * r;
-  return r * vec2f(sin(aa), -cos(aa));
-}
-
-fn var_disc(p: vec2f) -> vec2f {
-  let r = length(p);
-  let a = atan2(p.y, p.x) / PI;
-  return a * vec2f(sin(PI * r), cos(PI * r));
-}
-
-fn var_spiral(p: vec2f) -> vec2f {
-  let r = max(length(p), 1e-4);
-  let a = atan2(p.y, p.x);
-  let sr = sin(r);
-  let cr = cos(r);
-  return vec2f(cr + sr, sr - cr) * (a / r) * 0.5;
-}
-
-fn var_hyperbolic(p: vec2f) -> vec2f {
-  let r = max(length(p), 1e-4);
-  let a = atan2(p.y, p.x);
-  return vec2f(sin(a) / r, r * cos(a)) * 0.5;
-}
-
-fn var_diamond(p: vec2f) -> vec2f {
-  let r = length(p);
-  let a = atan2(p.y, p.x);
-  return vec2f(sin(a) * cos(r), cos(a) * sin(r));
-}
-
-fn var_ex(p: vec2f) -> vec2f {
-  let r = length(p);
-  let a = atan2(p.x, p.y);
-  let n0 = sin(a + r);
-  let n1 = cos(a - r);
-  let m0 = n0 * n0 * n0 * r;
-  let m1 = n1 * n1 * n1 * r;
-  return vec2f(m0 + m1, m0 - m1) * 0.5;
-}
-
-fn var_bent(p: vec2f) -> vec2f {
-  return vec2f(
-    select(p.x * 2.0, p.x, p.x >= 0.0),
-    select(p.y * 0.5, p.y, p.y >= 0.0)
-  );
-}
-
-fn var_waves(p: vec2f) -> vec2f {
-  return vec2f(p.x + 0.35 * sin(p.y * 2.2), p.y + 0.35 * sin(p.x * 1.9));
-}
-
-fn var_fisheye(p: vec2f) -> vec2f {
-  return p * (2.0 / (length(p) + 1.0));
-}
-
-fn var_eyefish(p: vec2f) -> vec2f {
-  return p * (2.0 / (length(p) + 1.0));
-}
-
-fn var_exponential(p: vec2f) -> vec2f {
-  let dx = exp(clamp(p.x - 1.0, -4.0, 4.0));
-  let dy = PI * p.y;
-  return dx * vec2f(cos(dy), sin(dy));
-}
-
-fn var_bubble(p: vec2f) -> vec2f {
-  return p * (4.0 / (dot(p, p) + 4.0));
-}
-
-fn var_curl(p: vec2f) -> vec2f {
-  let c1 = 0.35;
-  let c2 = 0.25;
-  let t1 = 1.0 + c1 * p.x + c2 * (p.x * p.x - p.y * p.y);
-  let t2 = c1 * p.y + 2.0 * c2 * p.x * p.y;
-  let d = max(t1 * t1 + t2 * t2, 1e-4);
-  return vec2f(p.x * t1 + p.y * t2, p.y * t1 - p.x * t2) / d;
-}
-
-fn var_cross(p: vec2f) -> vec2f {
-  let d = max((p.x * p.x - p.y * p.y) * (p.x * p.x - p.y * p.y), 1e-4);
-  return p * (sqrt(1.0 / d) * 0.55);
-}
-
-fn var_blade(p: vec2f) -> vec2f {
-  let r = length(p);
-  let ph = r * (1.7 + u.seed * 0.2) + u.time * 0.6;
-  return r * vec2f(cos(ph) * (cos(ph) + sin(ph)), sin(ph) * (cos(ph) - sin(ph))) * 0.55;
-}
-
-fn var_flower(p: vec2f) -> vec2f {
-  let a = atan2(p.y, p.x);
-  let r = length(p);
-  let petals = 0.55 + 0.45 * abs(cos(a * 3.0));
-  return (petals * cos(r * 2.0) / max(r, 1e-3)) * vec2f(cos(a), sin(a));
-}
-
-fn theme_warp(p: vec2f, theme: f32, t: f32) -> vec2f {
-  let w = 0.5 + 0.5 * sin(t * 0.17 + theme);
-  let w2 = 0.5 + 0.5 * cos(t * 0.11 + theme * 1.7);
-  let th = floor(theme + 0.5);
-  var q = p;
-
-  if (th < 0.5) {
-    q = mix(var_swirl(p * 1.15), var_spherical(p) * 0.55, w * 0.65);
-    q = mix(q, var_ex(p * 0.9), w2 * 0.25);
-  } else if (th < 1.5) {
-    let a = mix(var_horseshoe(p), var_handkerchief(p), w);
-    q = mix(a, mix(var_polar(p) * 0.85, var_cross(p), w2), 0.5);
-  } else if (th < 2.5) {
-    let a = mix(var_disc(p * 0.9), var_bubble(p), w);
-    q = mix(a, var_sinusoidal(p * 1.35) * 0.7, w2 * 0.4);
-  } else if (th < 3.5) {
-    let a = mix(var_spiral(p), var_hyperbolic(p) * 0.7, w);
-    q = mix(a, mix(var_diamond(p), var_blade(p), w2), 0.55);
-  } else if (th < 4.5) {
-    let a = mix(var_heart(p * 0.95), var_eyefish(p), w);
-    q = mix(a, mix(var_fisheye(p * 0.85), var_exponential(p * 0.55), w2), 0.5);
-  } else {
-    let a = mix(var_curl(p), var_waves(p), w);
-    q = mix(a, mix(var_bent(p), var_flower(p * 0.8), w2), 0.5);
-  }
-  return mix(p, q, 0.28);
-}
-
 fn soft_glow(d: f32, k: f32) -> f32 {
   return exp(-abs(d) * k);
-}
-
-fn sd_box2(p: vec2f, b: vec2f) -> f32 {
-  let q = abs(p) - b;
-  return length(max(q, vec2f(0.0))) + min(max(q.x, q.y), 0.0);
 }
 
 fn filmic_holi(c: vec3f) -> vec3f {
@@ -313,105 +159,6 @@ fn filmic_holi(c: vec3f) -> vec3f {
   var out = c * (mapped / luma);
   out = out / (1.0 + max(out - vec3f(0.68), vec3f(0.0)) * 2.8);
   return out;
-}
-
-fn space_for_mode(p: vec2f, mode: f32, segments: f32, t: f32) -> vec2f {
-  let lo = floor(mode + 0.5);
-  if (lo < 0.5) {
-    return kaleido(p * 0.85, segments);
-  } else if (lo < 1.5) {
-    let ang = atan2(p.x, p.y) / PI;
-    let depth = 1.0 / max(length(p), 0.18);
-    let tuv = vec2f(ang * 0.55, depth * 0.16) + t * vec2f(0.03, 0.22);
-    return vec2f(tuv.x, tuv.y * 0.55) * 0.9;
-  }
-  var q = kaleido(p * 0.75, segments);
-  q = rotate2(q, t * 0.05);
-  let depth = 1.0 / max(length(q), 0.16);
-  let tz = depth * 0.22 + t * 0.35;
-  return vec2f(q.x * 1.1, q.y * 1.1 + (fract(tz) - 0.5) * 0.35);
-}
-
-fn bold_forms(p: vec2f, t: f32, theme: f32, ring_amt: f32) -> f32 {
-  let breath = 0.12 * sin(t * 0.4 + theme);
-  var g = 0.0;
-
-  let r = length(p);
-  g += soft_glow(r - (0.62 + breath), 7.5) * 1.35;
-  g += soft_glow(r - (1.15 + breath * 0.6), 5.5) * 0.75;
-  g += soft_glow(abs(p.y) - (0.10 + 0.04 * sin(t * 0.55)), 11.0) * 1.1;
-
-  let s1 = 0.95 - abs(sin(t * 0.35)) * 0.25;
-  let b1 = sd_box2(rotate2(p + vec2f(0.0, 0.35 * sin(t * 0.4)), 0.8), vec2f(0.72 * s1, 0.10));
-  let b2 = sd_box2(rotate2(p - vec2f(0.0, 0.35 * sin(t * 0.4)), -0.8), vec2f(0.72 * s1, 0.10));
-  let b3 = sd_box2(rotate2(p, t * 0.12), vec2f(0.48, 0.14 + 0.04 * cos(t * 0.3)));
-  g += soft_glow(b1, 9.0) * 0.95;
-  g += soft_glow(b2, 9.0) * 0.95;
-  g += soft_glow(b3, 8.0) * 0.8;
-
-  let dia = sd_box2(rotate2(p, 0.785 + t * 0.08), vec2f(0.55, 0.08));
-  g += soft_glow(dia, 10.0) * 0.7;
-
-  if (ring_amt > 0.04) {
-    let sparse = ring_amt * smoothstep(0.0, 0.7, ring_amt);
-    g += soft_glow(r - (0.88 + 0.2 * sin(t * 0.45)), 6.0) * sparse * 0.9;
-    let storm = smoothstep(0.85, 1.5, ring_amt);
-    g += soft_glow(r - (1.35 + 0.15 * cos(t * 0.3)), 4.5) * storm * 0.7;
-  }
-
-  return g;
-}
-
-fn tunnel_bands(p: vec2f, t: f32, layout_w: f32) -> f32 {
-  let w = smoothstep(0.2, 0.85, layout_w);
-  if (w < 0.01) {
-    return 0.0;
-  }
-  let r = max(length(p), 0.12);
-  let depth = 1.0 / r + t * 0.45;
-  let band = soft_glow(abs(sin(depth * 0.65)) * 1.4 - 0.7, 5.0);
-  let lane = soft_glow(abs(sin(atan2(p.y, p.x) * 2.0 + depth * 0.15)) - 0.35, 6.5);
-  let wall = smoothstep(0.08, 0.35, r) * (1.0 - smoothstep(1.2, 1.9, r));
-  return (band * 1.1 + lane * 0.55) * wall * w;
-}
-
-fn classic_sheep(uv_in: vec2f) -> vec3f {
-  let res = u.resolution;
-  let t = u.time;
-  let theme = u.theme;
-  let mode = u.layout_mode;
-
-  var uv = (uv_in * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
-  let uv0 = uv;
-
-  let m = (u.mouse * 2.0 - 1.0) * vec2f(res.x / res.y, 1.0);
-  let mlen = length(m);
-  uv += m * 0.34;
-  uv = rotate2(uv, m.x * 0.58 + m.y * 0.24 + mlen * 0.2);
-  uv += rotate2(m, t * 0.35) * 0.12 * sin(t * 0.5 + mlen);
-  uv = rotate2(uv, t * (0.04 + theme * 0.008));
-
-  var folded = kaleido(uv, u.mirrors);
-  folded = rotate2(folded, m.x * 0.38 - m.y * 0.22);
-  folded += m.yx * vec2f(-0.16, 0.16);
-
-  var p = space_for_mode(folded, mode, u.mirrors, t);
-  p = theme_warp(p * (0.72 + 0.08 * sin(t * 0.1 + theme)), theme, t);
-  p += m * 0.1;
-
-  let field = bold_forms(p, t, theme, u.ring_amount);
-  let bands = tunnel_bands(uv0, t, mode);
-
-  let hue = length(uv0) * 0.35 + t * 0.12 + u.seed * 0.08 + atan2(p.y, p.x) * 0.04;
-  let col = palette(hue) * 0.65 + palette(hue + 0.28) * 0.35;
-
-  var final_color = col * (field * 0.55 + bands * 0.4);
-  final_color += rainbow(hue + 0.4) * field * 0.06;
-
-  let tunnel_bloom = smoothstep(0.45, 1.25, mode);
-  final_color += palette(t * 0.06 + 0.45) * (0.02 / (length(uv0) + 0.18)) * tunnel_bloom;
-
-  return final_color;
 }
 
 // ---------------------------------------------------------------------------
@@ -605,11 +352,12 @@ fn clogo(p_in: vec2f, z: f32, t: f32) -> CLogo {
   var s = merge_stroke(s0, s1);
   s = merge_stroke(s, s2);
 
-  // Holi ramp on angular parameter (replaces hsv2rgb sat=0.9)
+  // Riot Holi on angular petals — several gulal hues in one flower
   let hue_t = fract(s.z / PI + t * 0.5);
-  let rgb = palette_theme(hue_t + u.theme * 0.05, u.theme);
+  let rgb = palette_theme(hue_t + u.theme * 0.05, u.theme) * 0.72
+    + palette_theme(hue_t + 0.28, u.theme) * 0.28;
   var out: CLogo;
-  out.color = rgb * s.x;
+  out.color = rgb * max(s.x, 0.35) + rainbow(hue_t + 0.5) * s.x * 0.25;
   out.cover = s.y;
   out.dist = s.w;
   return out;
@@ -650,21 +398,27 @@ fn flock_sheep(uv_in: vec2f) -> vec3f {
   cp = rotate2(cp, t * 0.2 + TAU * h);
 
   let logo = clogo(cp, 0.6, t);
-  // Holi glow (replaces hsv2rgb(h, 0.8, 4.0))
-  let gcol = palette_theme(h + u.theme * 0.08, u.theme) * 2.4;
+  // Multi-powder glow halo (replaces single hsv tint)
+  let gcol = palette_theme(h + u.theme * 0.08, u.theme) * 1.8
+    + rainbow(h + 0.37 + t * 0.04) * 1.1
+    + holi_powder(floor(h * 7.0 + 3.0)) * 0.55;
 
   var col = vec3f(0.0);
-  col += gcol * exp(-50.0 * max(logo.dist, 0.0));
-  col = mix(col, vec3f(0.16, 0.06, 0.10), smoothstep(aa, -aa, hd));
+  col += gcol * exp(-42.0 * max(logo.dist, 0.0));
+  // Colorful hex seams instead of dull grey borders
+  let border = palette_theme(h * 1.3 + t * 0.06, u.theme);
+  col = mix(col, border * 0.55, smoothstep(aa, -aa, hd) * 0.65);
   col = mix(col, logo.color, logo.cover);
+  // Cell floor wash — every hex holds Holi powder
+  col += rainbow(h + np.x * 0.05 + t * 0.03) * soft_glow(length(hp) - 0.35, 6.0) * 0.22;
 
-  // Optional ring episode accent on hex borders
-  if (u.ring_amount > 0.2) {
-    col += palette(h + 0.35) * soft_glow(sd_hex(hp.yx, 0.48), 16.0) * u.ring_amount * 0.22;
-  }
+  // Ring episodes add more gulal, never sparse grey
+  let ring = max(u.ring_amount, 0.35);
+  col += palette(h + 0.35) * soft_glow(sd_hex(hp.yx, 0.48), 14.0) * ring * 0.35;
+  col += rainbow(h + 0.6) * soft_glow(sd_hex(hp.yx, 0.35), 10.0) * 0.12;
 
   // Soft vignette (lighter than IQ postProcess — finish() handles filmic/Holi)
-  let vig = 0.55 + 0.45 * pow(19.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.7);
+  let vig = 0.62 + 0.38 * pow(19.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.7);
   col *= vig;
 
   return col;
@@ -713,35 +467,42 @@ fn truchet_sheep(uv_in: vec2f) -> vec3f {
   let d_arc_b = abs(length(f - vec2f(0.5, 0.5)) - r);
   let d_diag = abs(f.x - f.y) * 0.7071;
   let stroke = select(min(d_arc_a, d_arc_b), d_diag, h2.y > 0.62);
-  let w = 0.07 + 0.03 * sin(t * 1.4 + h * 10.0);
-  let line = soft_glow(stroke - w, 28.0) + soft_glow(stroke, 9.0) * 0.35;
+  let w = 0.10 + 0.04 * sin(t * 1.4 + h * 10.0);
+  let line = soft_glow(stroke - w, 22.0) + soft_glow(stroke, 7.0) * 0.55;
 
-  // Multi-hue Holi lanes — not a thin neon ramp
-  let lane = (cell.x + cell.y * 0.37) * 0.08 + h * 0.5 + u.theme * 0.11 + t * 0.04;
+  // Loud multi-powder Holi per cell — never a thin single-hue neon
+  let lane = (cell.x + cell.y * 0.37) * 0.11 + h * 0.55 + u.theme * 0.08 + t * 0.05;
   let c0 = palette_theme(lane, u.theme);
-  let c1 = palette_theme(lane + 0.33, u.theme);
-  let c2 = holi_powder(floor(h * 7.0 + u.theme));
-  var col = mix(c0, c1, clamp(line, 0.0, 1.0)) * line;
-  col += c2 * soft_glow(length(f) - 0.18, 12.0) * 0.2;
+  let c1 = palette_theme(lane + 0.22, u.theme);
+  let c2 = holi_powder(floor(h * 7.0));
+  let c3 = holi_powder(floor(h * 7.0 + 3.0));
+  var col = (c0 * 0.55 + c1 * 0.45) * (0.25 + line * 1.15);
+  col += c2 * soft_glow(length(f) - 0.22, 9.0) * 0.45;
+  col += c3 * soft_glow(stroke - w * 0.5, 16.0) * 0.35;
+  col += rainbow(lane + 0.5) * soft_glow(min(d_arc_a, d_arc_b) - 0.12, 11.0) * 0.4;
 
-  // Nested polar rings for kaleido depth
+  // Nested polar Holi bands
   let pr = length(q);
-  col += palette(pr * 0.4 + t * 0.08) * soft_glow(abs(sin(pr * 5.0 - t)) - 0.15, 8.0) * 0.35;
-  col += rainbow(atan2(q.y, q.x) / TAU + t * 0.05) * soft_glow(abs(q.y), 18.0) * 0.15;
+  col += palette(pr * 0.4 + t * 0.08) * soft_glow(abs(sin(pr * 5.0 - t)) - 0.1, 6.5) * 0.55;
+  col += rainbow(atan2(q.y, q.x) / TAU + t * 0.05) * soft_glow(abs(q.y), 14.0) * 0.28;
+  col += rainbow(pr * 0.2 + h) * 0.08;
 
-  if (u.ring_amount > 0.15) {
-    col += palette(h + 0.5) * soft_glow(pr - (0.7 + 0.2 * sin(t)), 6.0) * u.ring_amount * 0.4;
-  }
+  let ring = max(u.ring_amount, 0.4);
+  col += palette(h + 0.5) * soft_glow(pr - (0.7 + 0.2 * sin(t)), 5.5) * ring * 0.55;
 
   return col;
 }
 
 fn finish(col_in: vec3f) -> vec4f {
   var final_color = col_in * u.intensity;
+  // Slight saturation lift so gulal reads loud before filmic clamp
+  let luma = max(dot(final_color, vec3f(0.2126, 0.7152, 0.0722)), 1e-4);
+  final_color = mix(vec3f(luma), final_color, 1.22);
   final_color = filmic_holi(final_color);
-  final_color = pow(clamp(final_color, vec3f(0.0), vec3f(1.0)), vec3f(0.96));
-  let pedestal = mix(vec3f(0.012, 0.004, 0.010), vec3f(0.008, 0.005, 0.018), u.theme / 5.0);
-  final_color = pedestal + final_color * 0.96;
+  final_color = pow(clamp(final_color, vec3f(0.0), vec3f(1.0)), vec3f(0.94));
+  // Warm Holi pedestal — never cold cyan void
+  let pedestal = vec3f(0.035, 0.012, 0.028) + rainbow(u.time * 0.02 + u.seed) * 0.03;
+  final_color = pedestal + final_color * 0.97;
   return vec4f(final_color, 1.0);
 }
 
@@ -749,12 +510,10 @@ fn finish(col_in: vec3f) -> vec4f {
 fn fs_main(@location(0) uv_in: vec2f) -> @location(0) vec4f {
   let lo = floor(u.layout_mode + 0.5);
   var col: vec3f;
-  if (lo > 3.5) {
+  if (lo > 0.5) {
     col = truchet_sheep(uv_in);
-  } else if (lo > 2.5) {
-    col = flock_sheep(uv_in);
   } else {
-    col = classic_sheep(uv_in);
+    col = flock_sheep(uv_in);
   }
   return finish(col);
 }
