@@ -1,8 +1,8 @@
 // Electric-Sheep-inspired kaleidoscope — fragment-only, 4K@120 friendly.
 // flam3 UV variations + Holi palettes + layout flock (Mandala flowers CC0) / truchet.
 //
-// Mandala flowers layout adapted from:
-//   "Mandala flowers" by Mårten Rånge (CC0) — https://www.shadertoy.com/view/NlcSRB
+// Mandala flowers (flock) adapted from Mårten Rånge CC0 — Shadertoy NlcSRB
+//   Source: nabeel-oz/glsl-to-mp4 references/MandalaFlowers.md (not live Shadertoy.com)
 // Truchet layout is an original WGSL reimplementation of the *idea* only
 // (smooth polar fold + cell patterns + Holi colors) — not a paste of 7lKSWW.
 
