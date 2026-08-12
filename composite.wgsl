@@ -42,18 +42,14 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VSOut {
   return out;
 }
 
-fn hash21(p: vec2f) -> f32 {
-  return fract(sin(dot(p, vec2f(127.1, 311.7))) * 43758.5453);
+// Hash without Sine — Dave Hoskins (MIT) — https://www.shadertoy.com/view/4djSRW
+fn hash21(p_in: vec2f) -> f32 {
+  var p3 = fract(vec3f(p_in.x, p_in.y, p_in.x) * 0.1031);
+  p3 += dot(p3, p3.yzx + 33.33);
+  return fract((p3.x + p3.y) * p3.z);
 }
 
-fn mod1(x: f32, y: f32) -> f32 {
-  return x - y * floor(x / y);
-}
-
-fn mod2(p: vec2f, s: vec2f) -> vec2f {
-  return vec2f(mod1(p.x, s.x), mod1(p.y, s.y));
-}
-
+// MIT — Inigo Quilez hex SDF
 fn sd_hex(p_in: vec2f, r: f32) -> f32 {
   let k = vec3f(-sqrt(3.0) * 0.5, 0.5, sqrt(1.0 / 3.0));
   var p = abs(p_in);
@@ -67,17 +63,39 @@ struct HexTile {
   id: vec2f,
 }
 
-fn hextile(p_in: vec2f) -> HexTile {
-  let sz = vec2f(1.0, sqrt(3.0));
-  let hsz = 0.5 * sz;
-  let p1 = mod2(p_in, sz) - hsz;
-  let p2 = mod2(p_in - hsz, sz) - hsz;
-  let p3 = select(p2, p1, dot(p1, p1) < dot(p2, p2));
-  var n = (p3 - p_in + hsz) / sz;
-  n -= vec2f(0.5);
+fn axial_round(a: vec2f) -> vec2f {
+  var x = a.x;
+  var z = a.y;
+  var y = -x - z;
+  var rx = round(x);
+  var ry = round(y);
+  var rz = round(z);
+  let x_diff = abs(rx - x);
+  let y_diff = abs(ry - y);
+  let z_diff = abs(rz - z);
+  if (x_diff > y_diff && x_diff > z_diff) {
+    rx = -ry - rz;
+  } else if (y_diff > z_diff) {
+    ry = -rx - rz;
+  } else {
+    rz = -rx - ry;
+  }
+  return vec2f(rx, rz);
+}
+
+// Axial hex tiling — original reimplementation (not Art of Code hextile)
+fn hex_tile(p_in: vec2f) -> HexTile {
+  let size = 0.35;
+  let q = (sqrt(3.0) / 3.0 * p_in.x - (1.0 / 3.0) * p_in.y) / size;
+  let r = ((2.0 / 3.0) * p_in.y) / size;
+  let id = axial_round(vec2f(q, r));
+  let center = vec2f(
+    size * (sqrt(3.0) * id.x + sqrt(3.0) * 0.5 * id.y),
+    size * (1.5 * id.y),
+  );
   var out: HexTile;
-  out.local = p3;
-  out.id = round(n * 2.0) * 0.5;
+  out.local = p_in - center;
+  out.id = id;
   return out;
 }
 
@@ -91,7 +109,7 @@ fn mix_hex(uv: vec2f, p: f32) -> f32 {
   let aspect = u.resolution.x / max(u.resolution.y, 1.0);
   var q = (uv * 2.0 - 1.0) * vec2f(aspect, 1.0);
   q *= 3.2;
-  let tile = hextile(q);
+  let tile = hex_tile(q);
   let h = hash21(tile.id + vec2f(u.seed * 3.1, u.seed * 1.7));
   // Soft edge so cells bloom rather than hard-cut
   let edge = sd_hex(tile.local.yx, 0.48);

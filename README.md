@@ -18,10 +18,11 @@ Intentionally **not** ported from Electric Sheep: chaos-game IFS accumulation, d
 
 ## Attribution
 
-See **[ATTRIBUTION.md](./ATTRIBUTION.md)**.
+See **[ATTRIBUTION.md](./ATTRIBUTION.md)** for the full helper-license table.
 
-- **Flock / Mandala flowers:** adapted from [Mandala flowers](https://www.shadertoy.com/view/NlcSRB) by Mårten Rånge — **CC0**
-- **Truchet layout:** original WGSL inspired by the *idea* of [7lKSWW](https://www.shadertoy.com/view/7lKSWW) — **not** a verbatim paste; that Shadertoy’s live license is unconfirmed for commercial reuse
+- **Flock / Mandala flowers:** adapted from [Mandala flowers](https://www.shadertoy.com/view/NlcSRB) by **Mårten Rånge (mrange)** — **CC0** (shader header typo `CCO`). Source ingested from [`nabeel-oz/glsl-to-mp4`](https://github.com/nabeel-oz/glsl-to-mp4) `references/MandalaFlowers.md` (not live Shadertoy.com).
+- Prefer CC0 + MIT helpers from that listing; unknown `hash` / Art of Code `hextile` were **rewritten**; Holi palettes replace `hsv2rgb`.
+- **Truchet layout:** original WGSL inspired by the *idea* of [7lKSWW](https://www.shadertoy.com/view/7lKSWW) — **do not paste** that shader; license unconfirmed for commercial reuse.
 
 ## Run
 
