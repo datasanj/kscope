@@ -21,7 +21,7 @@ Author Shadertoy descriptions quote **CC0** (prefer over Fuse packaging © NC-SA
 | --- | --- | --- | --- |
 | `starry_pl` | [StarryPlanes](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/StarryPlanes/) · [MfjyWK](https://www.shadertoy.com/view/MfjyWK) | **CC0** mrange | Path star cutouts → Holi. Jump: `Z` |
 | `clearly_bug` | [ClearlyABug](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/ClearlyABug/) · [33cGDj](https://www.shadertoy.com/view/33cGDj) | **CC0** mrange | Happy-accident lattice → Holi. Jump: `W` |
-| `beats4d` | [D4DBeats](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/D4DBeats/) · [tfK3Dy](https://www.shadertoy.com/view/tfK3Dy) | **CC0** mrange | 4D lattice inversion; faux beat. Jump: `O` |
+| `beats4d` | [D4DBeats](https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/D4DBeats/) · [tfK3Dy](https://www.shadertoy.com/view/tfK3Dy) | **CC0** mrange | 4D lattice inversion; continuous spin + pulsing inversion + faux beat (alive at audioLevel=0). Jump: `O` |
 
 **Rejected / removed (do not re-add):** `rainbow_nest`, `glass_shard`, `dream_fold`, `play_*`, `fold_mirror` (weak MIT kaleido toys).
 

@@ -1353,48 +1353,69 @@ fn clearly_bug_effect(uv_in: vec2f) -> vec3f {
 
 // ---- 17 beats4d — 4D Beats (CC0 mrange tfK3Dy) ----
 // https://nmbr73.github.io/Shaderfuse/ShaderOfTheWeek/D4DBeats/
-// 4D lattice inversion grid; faux beat (no audio texture required).
+// Alive without mic: continuous 4D spin + lattice scroll + faux-beat pulse.
 
 fn beats4d_effect(uv_in: vec2f) -> vec3f {
-  let C = uv_in * u.resolution;
-  let r = u.resolution;
-  // Faux musical beat (audio_level optional boost)
-  let faux = 0.55 + 0.45 * sin(u.time * 2.0) * sin(u.time * 1.14);
+  let res = u.resolution;
+  let t = u.time;
+  // Continuous drive + stepped “beat” (audio_level optional boost; never static at 0)
+  let faux = 0.5 + 0.5 * abs(sin(t * 2.85)) * abs(sin(t * 1.37 + 0.7));
   let beat = max(u.audio_level, faux);
-  let T = u.time * 1.9 + beat * 0.4;
-  let F = fract(T);
-  let tt = floor(T) + sqrt(F);
+  let bpm = t * 1.9;
+  let F = fract(bpm);
+  let tt = floor(bpm) + sqrt(F); // original beat ease
+  // Independent continuous angles so the lattice never freezes between beats
+  let a0 = t * 0.55 + tt * 0.12;
+  let a1 = t * 0.37 + beat * 0.8;
+  let a2 = t * 0.29 - tt * 0.08;
+  let inv_r = 7.5 + 2.5 * sin(t * 1.1 + beat * 2.0); // pulsing inversion
+  let thick = 0.018 + 0.014 * beat;
+  let scroll = tt * 0.55 + t * 0.35;
+
   var o = vec3f(0.0);
-  var z = 0.0;
+  var z = 0.05;
   var d = 0.0;
-  let steps = quality_steps(48, 72);
-  let ang = tt * 0.1;
-  for (var i = 1.0; i < 80.0; i += 1.0) {
-    if (i32(i) > steps) { break; }
-    var p = vec4f(z * normalize(vec3f(C - 0.5 * r.xy, r.y)), 0.2);
-    p.z -= 3.0;
-    // Rotate in XW / YW / ZW
-    let c = cos(ang);
-    let s = sin(ang);
-    let xw = vec2f(c * p.x - s * p.w, s * p.x + c * p.w);
+  let steps = quality_steps(52, 78);
+  let rd = normalize(vec3f((uv_in - 0.5) * vec2f(res.x / max(res.y, 1.0), 1.0), 1.15));
+
+  for (var i = 1; i < 84; i++) {
+    if (i >= steps) { break; }
+    var p = vec4f(rd * z, 0.22 + 0.08 * sin(t * 0.7 + z * 0.3));
+    p.z -= 2.6 + 0.35 * sin(t * 0.4);
+
+    // 4D rotations (XW / YW / ZW / XY) — continuous + beat-nudged
+    let xw = rotate2(vec2f(p.x, p.w), a0);
     p = vec4f(xw.x, p.y, p.z, xw.y);
-    let yw = vec2f(c * p.y - s * p.w, s * p.y + c * p.w);
+    let yw = rotate2(vec2f(p.y, p.w), a1);
     p = vec4f(p.x, yw.x, p.z, yw.y);
-    let zw = vec2f(c * p.z - s * p.w, s * p.z + c * p.w);
+    let zw = rotate2(vec2f(p.z, p.w), a2);
     p = vec4f(p.x, p.y, zw.x, zw.y);
-    let k = 9.0 / max(dot(p, p), 1e-3);
+    let xy = rotate2(p.xy, t * 0.21 + beat * 0.4);
+    p = vec4f(xy.x, xy.y, p.z, p.w);
+
+    // @mla-style inversion with pulsing radius
+    let k = inv_r / max(dot(p, p), 1e-3);
     p *= k;
-    p -= vec4f(0.5 * tt);
+    p -= vec4f(scroll * 0.5, scroll * 0.35, scroll * 0.55, scroll * 0.25);
+
     let P = p;
     p = abs(fract(p) - 0.5);
-    d = (min(p.x, min(p.y, min(p.z, p.w))) - 0.02) / k;
+    d = (min(p.x, min(p.y, min(p.z, p.w))) - thick) / max(k, 1e-3);
     d = abs(d) + 1e-3;
-    var glow = palette_theme(0.2 + length(P.xyz) * 0.15 + tt * 0.03, u.theme);
-    glow += holi_powder(floor(P.w * 3.0 + 2.0)) * 0.25;
-    o += glow / d * 0.15;
-    z += 0.8 * d + 1e-3;
+
+    // Holi glow travels with time/beat (mouse also cycles via palette)
+    var glow = palette_theme(0.12 + length(P.xyz) * 0.12 + t * 0.08 + tt * 0.05, u.theme);
+    glow += holi_powder(floor(P.w * 4.0 + t * 0.5 + 2.0)) * (0.2 + 0.25 * beat);
+    glow += rainbow(t * 0.06 + z * 0.04) * 0.15;
+    let pulse = 0.12 + 0.18 * beat;
+    o += glow / d * pulse;
+    z += 0.65 * d + 0.002;
+    if (z > 14.0) { break; }
   }
-  return tanh(o / 40.0);
+
+  // Soft living pedestal so empty frames still shift hue with time
+  o += palette_theme(t * 0.05, u.theme) * (0.04 + 0.03 * beat);
+  return tanh(o / 28.0);
 }
 
 @fragment
