@@ -832,15 +832,18 @@ fn vnoise2(p: vec2f) -> f32 {
 }
 
 fn hifbm(p_in: vec2f) -> f32 {
+  // Continuous value-noise FBM (no UV snapping) — hills stay soft at full res
   var p = p_in;
   var sum = 0.0;
   var a = 1.0;
-  for (var i = 0; i < 5; i++) {
+  var norm = 0.0;
+  for (var i = 0; i < 6; i++) {
     sum += a * vnoise2(p);
+    norm += a;
     a *= 0.5;
-    p *= 2.0;
+    p = p * 2.03 + vec2f(17.1, 9.3);
   }
-  return sum;
+  return sum / max(norm, 1e-4);
 }
 
 fn tanh_approx(x: f32) -> f32 {
@@ -886,10 +889,12 @@ fn neonwave_effect(uv_in: vec2f) -> vec3f {
     if (pd <= 0.0 || acol.w > 0.95) { break; }
     let pp = ro + rd * pd;
     if (pp.y > 10.0) { break; }
-    let stp = vec2f(0.5, 0.33);
-    let he = hifbm(vec2f(pp.x, pp.z) * stp) - 1.8;
+    // Continuous heightfield — denser domain, no cell snapping
+    let stp = vec2f(0.72, 0.48);
+    let he = hifbm(vec2f(pp.x, pp.z) * stp) * 2.2 - 1.55;
     let d = pp.y - he;
-    let aa = 0.02 * pd;
+    // Wider AA so silhouette edges never stair-step
+    let aa = max(0.035 * pd, 0.012);
     let cover = smoothstep(aa, -aa, d);
     let h = hash21(vec2f(nz + f32(i), u.seed));
     var pcol = palette_theme(0.15 + h * 0.5 + pp.z * 0.04 + t * 0.08, u.theme);
@@ -1007,7 +1012,7 @@ fn starry_pl_effect(uv_in: vec2f) -> vec3f {
     let spin = 0.5 * pp.z;
     p2 = rotate2(p2, spin);
     let d0 = star5(p2, 0.45, 1.6, 0.2) - 0.02;
-    let aa = 0.02 * pd;
+    let aa = max(0.03 * pd, 0.01);
     let cover = smoothstep(aa, -aa, d0);
     var pcol = palette_theme(0.2 + f32(i) * 0.07 + pp.z * 0.05, u.theme);
     pcol += holi_powder(f32(i % 7)) * 0.65;

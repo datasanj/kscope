@@ -86,9 +86,7 @@ const state = {
   mixMode: MIX.HEX,
   pinnedMixMode: null, // null = auto pick
   ringAmount: 0,
-  // Quality: dual half-res during transitions (toggle with Q)
-  dualHalfRes: true,
-  // Raymarch quality inside heavy layouts (toggle with V)
+  // Raymarch / plane quality caps (toggle with V) — dual always full-res
   highQuality: false,
   audioLevel: 0,
   audioEnabled: false,
@@ -236,9 +234,8 @@ function ringLabel() {
 }
 
 function qualityLabel() {
-  const dual = state.dualHalfRes ? "½res×2" : "full×2";
   const rq = state.highQuality ? "HQ" : "LQ";
-  return `${dual}/${rq}`;
+  return `full×2/${rq}`;
 }
 
 
@@ -443,9 +440,9 @@ async function init() {
   let compBind = null;
 
   function ensureTargets(fullW, fullH) {
-    const scale = state.dualHalfRes ? 0.5 : 1.0;
-    const w = Math.max(1, Math.floor(fullW * scale));
-    const h = Math.max(1, Math.floor(fullH * scale));
+    // Always full-res dual targets (no ½res upscale — that caused visible pixel grids)
+    const w = Math.max(1, Math.floor(fullW));
+    const h = Math.max(1, Math.floor(fullH));
     if (rtA && rtW === w && rtH === h) return;
     rtA?.destroy();
     rtB?.destroy();
@@ -512,14 +509,34 @@ async function init() {
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const maxDim = 3840;
-    let w = Math.floor(window.innerWidth * dpr);
-    let h = Math.floor(window.innerHeight * dpr);
+    // Match the CSS box of #gpu so the swapchain isn't a small buffer stretched fullscreen
+    const cssW = canvas.clientWidth || window.innerWidth;
+    const cssH = canvas.clientHeight || window.innerHeight;
+    let w = Math.max(1, Math.floor(cssW * dpr));
+    let h = Math.max(1, Math.floor(cssH * dpr));
     const scale = Math.min(1, maxDim / Math.max(w, h));
     w = Math.max(1, Math.floor(w * scale));
     h = Math.max(1, Math.floor(h * scale));
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
+      // Reconfigure so presentation size tracks the drawing buffer
+      try {
+        context.configure({
+          device,
+          format,
+          alphaMode: "opaque",
+          usage: GPUTextureUsage.RENDER_ATTACHMENT,
+          ...(state.presentMode !== "default" ? { presentMode: state.presentMode } : {}),
+        });
+      } catch {
+        context.configure({
+          device,
+          format,
+          alphaMode: "opaque",
+          usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+      }
       rtA?.destroy();
       rtB?.destroy();
       rtA = rtB = null;
@@ -573,12 +590,6 @@ async function init() {
           ? MIX.HEX
           : (state.pinnedMixMode + 1) % 4;
       state.mixMode = state.pinnedMixMode;
-    } else if (e.key === "q" || e.key === "Q") {
-      state.dualHalfRes = !state.dualHalfRes;
-      rtA?.destroy();
-      rtB?.destroy();
-      rtA = rtB = null;
-      rtW = rtH = 0;
     } else if (e.key === "v" || e.key === "V") {
       state.highQuality = !state.highQuality;
     } else if (e.key === "a" || e.key === "A") {

@@ -30,9 +30,10 @@ Holi gulal rainbow on everything (gulabi / laal / kesar / hari / **rang** defaul
 
 ## Quality
 
+Dual-effect transitions always render at **full canvas resolution** (½res path removed — it upscaled into a visible pixel grid). Linear filtering kept on the composite sampler. Canvas buffer tracks CSS size × DPR (capped at 3840).
+
 | Key | Effect |
 | --- | --- |
-| `Q` | Dual-transition half-res (default) ↔ full dual |
 | `V` | Quality **LQ** (default) ↔ **HQ** caps on remaining layouts |
 
 ## Controls
@@ -47,7 +48,7 @@ Holi gulal rainbow on everything (gulabi / laal / kesar / hari / **rang** defaul
 | `X` / `M` | Cycle mix mode (hex→iris→wedge→storm) |
 | `F` flock · `U` truchet · `G` golden · `L` logspiral · `P` apollo · `E` eel · `J` eelaudio · `H` gulal_pulse · `N` neonwave · `I` ai_heart · `Z` starry_pl | Jump layout |
 | `A` | Toggle optional mic for `eelaudio` (fallback: time faux-beat) |
-| `Q` / `V` | Dual res / quality |
+| `V` | Layout quality caps |
 | `R` | Remix seed + jump morph |
 | Space · `+`/`-` | Pause · intensity |
 
