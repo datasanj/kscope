@@ -2,10 +2,13 @@ const canvas = document.getElementById("gpu");
 const statsEl = document.getElementById("stats");
 const fallback = document.getElementById("fallback");
 
-// resolution(2) time seed mouse(2) themeA/B/mix mirrorsA/B/mix intensity
-// layoutA/B/mix ringAmount pad(3) = 20 floats / 80 bytes
-const UNIFORM_FLOATS = 20;
-const UNIFORM_BYTES = UNIFORM_FLOATS * 4;
+// Effect uniforms: res(2) time seed mouse(2) theme mirrors intensity layout ring audio quality pad
+const EFFECT_FLOATS = 16;
+const EFFECT_BYTES = EFFECT_FLOATS * 4;
+
+// Composite: resolution(2) progress mode time seed mirrorsA mirrorsB morph pad(3)
+const COMP_FLOATS = 12;
+const COMP_BYTES = COMP_FLOATS * 4;
 
 const THEMES = [
   { id: 0, name: "gulabi" },
@@ -16,27 +19,51 @@ const THEMES = [
   { id: 5, name: "neela" },
 ];
 
+// 60fps Holi set — heavy raymarch layouts culled (see EFFECTS_ADDED.md)
 const LAYOUTS = [
-  { id: 0, name: "kaleido" },
-  { id: 1, name: "tunnel" },
-  { id: 2, name: "hybrid" },
+  { id: 0, name: "flock" },
+  { id: 1, name: "truchet" },
+  { id: 2, name: "golden" },
+  { id: 3, name: "logspiral" },
+  { id: 4, name: "apollo" },
+  { id: 5, name: "eel" },
+  { id: 6, name: "eelaudio" },
+  { id: 7, name: "gulal_pulse" },
+  { id: 8, name: "neonwave" },
+  { id: 9, name: "ai_heart" },
+  { id: 10, name: "starry_pl" },
 ];
 
-// Prefer hybrid/tunnel more often than flat kaleido
-const LAYOUT_SEQ = [2, 1, 2, 0, 2, 1, 2, 1, 0, 2];
+const LAYOUT_FLOCK = 0;
+const LAYOUT_TRUCHET = 1;
+const LAYOUT_EELAUDIO = 6;
 
-// Few mirrors → wide Octagrams-scale wedges (3–6)
-const MIRROR_SEQ = [3, 4, 5, 3, 4, 6, 3, 5, 4, 3, 5, 4, 6, 4];
+// Auto-cycle remaining colorful / cheaper layouts only
+const LAYOUT_SEQ = [
+  0, 8, 2, 7, 1, 9, 4, 10, 3, 5, 6,
+  0, 9, 8, 2, 7, 4, 10, 1, 3, 5, 6,
+];
 
-// Ring episodes: 0 quiet, 1 sparse, 2 storm — long quiet stretches
-const RING_SEQ = [0, 0, 1, 0, 2, 0, 0, 1, 2, 0, 1, 0];
+const MIRROR_SEQ = [3, 4, 5, 6, 4, 8, 5, 3, 7, 4, 6, 5, 4, 3];
 
-const THEME_DWELL = 14;
-const THEME_FADE = 4.5;
-const MIRROR_DWELL = 9;
-const MIRROR_FADE = 2.8;
-const LAYOUT_DWELL = 11;
-const LAYOUT_FADE = 3.5;
+// Bias toward colorful ring energy (less empty quiet)
+const RING_SEQ = [1, 2, 1, 2, 0, 1, 2, 1, 2, 1, 0, 2];
+
+// Theme auto seq leans on rang (full Holi riot) while still visiting all powders
+const THEME_SEQ = [4, 0, 4, 1, 4, 2, 4, 3, 4, 5, 4, 0, 4, 2];
+
+/** Dual-effect mix modes */
+const MIX = {
+  HEX: 0,
+  IRIS: 1,
+  WEDGE: 2,
+  STORM: 3,
+};
+
+const MIX_NAMES = ["hex", "iris", "wedge", "storm"];
+
+const EFFECT_DWELL = 11;
+const EFFECT_FADE = 3.2;
 const RING_DWELL = 6.5;
 const RING_FADE = 2.2;
 
@@ -44,25 +71,39 @@ const state = {
   time: 0,
   seed: Math.random() * 10,
   autoTheme: true,
-  pinnedTheme: 0,
-  intensity: 0.95,
+  pinnedTheme: 4, // rang — full Holi riot default bias
+  intensity: 1.22,
   paused: false,
   mouse: [0.5, 0.5],
   last: performance.now(),
   frames: 0,
   fps: 0,
   fpsWindowStart: performance.now(),
-  themeA: 0,
-  themeB: 1,
-  themeMix: 0,
-  mirrorsA: 3,
-  mirrorsB: 4,
-  mirrorMix: 0,
-  layoutA: 2,
-  layoutB: 1,
-  layoutMix: 0,
+  // Current / next effect genomes
+  effectA: makeEffect(0),
+  effectB: makeEffect(1),
+  effectMix: 0,
+  mixMode: MIX.HEX,
+  pinnedMixMode: null, // null = auto pick
   ringAmount: 0,
+  // Raymarch / plane quality caps (toggle with V) — dual always full-res
+  highQuality: false,
+  audioLevel: 0,
+  audioEnabled: false,
+  presentMode: "default",
+  layoutIdx: 0,
+  themeIdx: 0,
+  mirrorIdx: 0,
 };
+
+function makeEffect(i) {
+  return {
+    theme: THEMES[i % THEMES.length].id,
+    layout: LAYOUT_SEQ[i % LAYOUT_SEQ.length],
+    mirrors: MIRROR_SEQ[i % MIRROR_SEQ.length],
+    seed: Math.random() * 10,
+  };
+}
 
 function showFallback() {
   fallback.hidden = false;
@@ -80,18 +121,23 @@ function stagedPair(time, dwell, fade, sequence, offset = 0) {
   const next = (idx + 1) % sequence.length;
   const local = t - Math.floor(t / cycle) * cycle;
   const mix = local <= dwell ? 0 : smoothstep(0, fade, local - dwell);
-  return { a: sequence[idx], b: sequence[next], mix };
+  return { a: sequence[idx], b: sequence[next], mix, idx, next, local, dwell };
 }
 
-/** Ring amount: mostly quiet, occasional sparse pulses, rare multi-circle storms */
+function pickMixMode(layoutA, layoutB) {
+  if (state.pinnedMixMode != null) return state.pinnedMixMode;
+  // Prefer hex takeover when Mandala flock is involved
+  if (layoutA === LAYOUT_FLOCK || layoutB === LAYOUT_FLOCK) return MIX.HEX;
+  const roll = Math.floor((state.seed * 17 + state.time * 0.3) % 4);
+  // Weight toward iris/wedge/storm color pops
+  const weighted = [MIX.IRIS, MIX.WEDGE, MIX.HEX, MIX.STORM, MIX.IRIS, MIX.WEDGE];
+  return weighted[roll % weighted.length];
+}
+
 function updateRingAmount(time) {
   const pair = stagedPair(time, RING_DWELL, RING_FADE, RING_SEQ, state.seed * 2.3);
-  const from = pair.a;
-  const to = pair.b;
-  // Map enum → intensity; add a little breath so storms feel alive
-  // Cap storms lower — fewer additive rings / less whiteout
   const map = (v) => (v === 0 ? 0 : v === 1 ? 0.65 : 1.45);
-  let amount = map(from) * (1 - pair.mix) + map(to) * pair.mix;
+  let amount = map(pair.a) * (1 - pair.mix) + map(pair.b) * pair.mix;
   if (amount > 1.0) {
     amount += 0.1 * Math.sin(time * 2.2);
   } else if (amount > 0.2) {
@@ -100,75 +146,149 @@ function updateRingAmount(time) {
   state.ringAmount = Math.max(0, amount);
 }
 
+function buildEffectFromIndices(themeId, layoutId, mirrorId, seed) {
+  return {
+    theme: themeId,
+    layout: layoutId,
+    mirrors: mirrorId,
+    seed,
+  };
+}
+
 function updateGenome(dt) {
   if (!state.paused) state.time += dt;
 
-  if (state.autoTheme) {
-    const themeIds = THEMES.map((t) => t.id);
-    const pair = stagedPair(state.time, THEME_DWELL, THEME_FADE, themeIds, state.seed);
-    state.themeA = pair.a;
-    state.themeB = pair.b;
-    state.themeMix = pair.mix;
-  } else {
-    state.themeA = state.pinnedTheme;
-    state.themeB = state.pinnedTheme;
-    state.themeMix = 0;
+  const cycle = EFFECT_DWELL + EFFECT_FADE;
+  const t = state.time + state.seed;
+  const idx = Math.floor(t / cycle);
+  const local = t - idx * cycle;
+  const mix = local <= EFFECT_DWELL ? 0 : smoothstep(0, EFFECT_FADE, local - EFFECT_DWELL);
+
+  // Stable per-slot genomes — rang-heavy Holi sequence in auto mode
+  const themeA = state.autoTheme
+    ? THEME_SEQ[idx % THEME_SEQ.length]
+    : state.pinnedTheme;
+  const themeB = state.autoTheme
+    ? THEME_SEQ[(idx + 1) % THEME_SEQ.length]
+    : state.pinnedTheme;
+
+  const layoutA = LAYOUT_SEQ[idx % LAYOUT_SEQ.length];
+  const layoutB = LAYOUT_SEQ[(idx + 1) % LAYOUT_SEQ.length];
+  const mirrorsA = MIRROR_SEQ[idx % MIRROR_SEQ.length];
+  const mirrorsB = MIRROR_SEQ[(idx + 1) % MIRROR_SEQ.length];
+
+  // Seed drifts per effect slot so remixed layouts differ
+  const seedA = state.seed + idx * 1.618;
+  const seedB = state.seed + (idx + 1) * 1.618;
+
+  state.effectA = buildEffectFromIndices(themeA, layoutA, mirrorsA, seedA);
+  state.effectB = buildEffectFromIndices(themeB, layoutB, mirrorsB, seedB);
+  state.effectMix = state.autoTheme || layoutA !== layoutB || mirrorsA !== mirrorsB ? mix : 0;
+  // When theme pinned, still allow layout dual transitions
+  if (!state.autoTheme) {
+    state.effectA.theme = state.pinnedTheme;
+    state.effectB.theme = state.pinnedTheme;
   }
 
-  const mirrors = stagedPair(
-    state.time,
-    MIRROR_DWELL,
-    MIRROR_FADE,
-    MIRROR_SEQ,
-    state.seed * 1.7 + 3.1
-  );
-  state.mirrorsA = mirrors.a;
-  state.mirrorsB = mirrors.b;
-  state.mirrorMix = mirrors.mix;
-
-  const layout = stagedPair(
-    state.time,
-    LAYOUT_DWELL,
-    LAYOUT_FADE,
-    LAYOUT_SEQ,
-    state.seed * 0.9 + 7.7
-  );
-  state.layoutA = layout.a;
-  state.layoutB = layout.b;
-  state.layoutMix = layout.mix;
-
+  state.mixMode = pickMixMode(state.effectA.layout, state.effectB.layout);
+  state.layoutIdx = idx;
   updateRingAmount(state.time);
 }
 
 function themeLabel() {
-  const a = THEMES[state.themeA]?.name ?? "?";
-  const b = THEMES[state.themeB]?.name ?? "?";
+  const a = THEMES[state.effectA.theme]?.name ?? "?";
+  const b = THEMES[state.effectB.theme]?.name ?? "?";
   if (!state.autoTheme) return a;
-  if (state.themeMix < 0.02) return a;
-  if (state.themeMix > 0.98) return b;
+  if (state.effectMix < 0.02) return a;
+  if (state.effectMix > 0.98) return b;
   return `${a}→${b}`;
 }
 
 function mirrorsLabel() {
-  const a = state.mirrorsA;
-  const b = state.mirrorsB;
-  if (state.mirrorMix < 0.02) return `${a}`;
-  if (state.mirrorMix > 0.98) return `${b}`;
-  return `${a}→${b}`;
+  const a = state.effectA.mirrors;
+  const b = state.effectB.mirrors;
+  // Genome morph underneath during fade
+  if (state.effectMix < 0.02) return `${a}`;
+  if (state.effectMix > 0.98) return `${b}`;
+  const m = Math.round(a + (b - a) * state.effectMix);
+  return `${a}→${b}(~${m})`;
 }
 
 function layoutLabel() {
-  const a = LAYOUTS[state.layoutA]?.name ?? "?";
-  const b = LAYOUTS[state.layoutB]?.name ?? "?";
-  if (state.layoutMix < 0.02) return a;
-  if (state.layoutMix > 0.98) return b;
+  const a = LAYOUTS[state.effectA.layout]?.name ?? "?";
+  const b = LAYOUTS[state.effectB.layout]?.name ?? "?";
+  if (state.effectMix < 0.02) return a;
+  if (state.effectMix > 0.98) return b;
   return `${a}→${b}`;
+}
+
+function mixLabel() {
+  if (state.effectMix < 0.02 || state.effectMix > 0.98) return "—";
+  return MIX_NAMES[state.mixMode] ?? "?";
 }
 
 function ringLabel() {
   if (state.ringAmount < 0.15) return "quiet";
   if (state.ringAmount < 1.1) return "sparse";
   return "storm";
+}
+
+function qualityLabel() {
+  const rq = state.highQuality ? "HQ" : "LQ";
+  return `full×2/${rq}`;
+}
+
+
+function jumpToLayout(layoutId) {
+  for (let i = 0; i < LAYOUT_SEQ.length * 3; i++) {
+    state.time += EFFECT_DWELL + EFFECT_FADE;
+    updateGenome(0);
+    if (state.effectA.layout === layoutId && state.effectMix < 0.05) break;
+  }
+}
+
+let audioCtx = null;
+let analyser = null;
+let audioData = null;
+async function toggleMicAudio() {
+  try {
+    if (state.audioEnabled && audioCtx) {
+      await audioCtx.close();
+      audioCtx = null;
+      analyser = null;
+      state.audioEnabled = false;
+      state.audioLevel = 0;
+      return;
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const src = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    src.connect(analyser);
+    audioData = new Uint8Array(analyser.frequencyBinCount);
+    state.audioEnabled = true;
+  } catch (err) {
+    console.warn("Mic audio unavailable — eelaudio uses time-driven faux beat.", err);
+    state.audioEnabled = false;
+  }
+}
+
+function sampleAudioLevel() {
+  if (!state.audioEnabled || !analyser || !audioData) {
+    // Faux reactivity always available for eelaudio layout
+    const faux = 0.55 + 0.45 * Math.sin(state.time * 2.7) * Math.sin(state.time * 1.3 + 1.7);
+    state.audioLevel =
+      state.effectA.layout === LAYOUT_EELAUDIO || state.effectB.layout === LAYOUT_EELAUDIO
+        ? faux * 0.85
+        : 0;
+    return;
+  }
+  analyser.getByteFrequencyData(audioData);
+  let sum = 0;
+  const n = Math.min(32, audioData.length);
+  for (let i = 0; i < n; i++) sum += audioData[i];
+  state.audioLevel = Math.min(1.2, (sum / n / 255) * 1.8);
 }
 
 async function init() {
@@ -209,58 +329,218 @@ async function init() {
   }
   if (!configured) context.configure(config);
 
-  const shaderCode = await fetch("shader.wgsl").then((r) => r.text());
-  const module = device.createShaderModule({ code: shaderCode });
+  const [effectCode, compCode] = await Promise.all([
+    fetch("shader.wgsl").then((r) => r.text()),
+    fetch("composite.wgsl").then((r) => r.text()),
+  ]);
 
-  const info = await module.getCompilationInfo?.();
-  if (info?.messages?.length) {
+  const effectModule = device.createShaderModule({ code: effectCode });
+  const compModule = device.createShaderModule({ code: compCode });
+
+  async function checkModule(module, label) {
+    const info = await module.getCompilationInfo?.();
+    if (!info?.messages?.length) return true;
     for (const m of info.messages) {
       console[m.type === "error" ? "error" : "warn"](
-        `[WGSL ${m.type}] L${m.lineNum}:${m.linePos} ${m.message}`
+        `[WGSL ${label} ${m.type}] L${m.lineNum}:${m.linePos} ${m.message}`
       );
     }
-    if (info.messages.some((m) => m.type === "error")) {
-      showFallback();
-      fallback.querySelector("p").textContent =
-        "Shader compile failed — see console for WGSL errors.";
-      return;
-    }
+    return !info.messages.some((m) => m.type === "error");
   }
 
-  const pipeline = device.createRenderPipeline({
+  if (!(await checkModule(effectModule, "effect")) || !(await checkModule(compModule, "composite"))) {
+    showFallback();
+    fallback.querySelector("p").textContent =
+      "Shader compile failed — see console for WGSL errors.";
+    return;
+  }
+
+  // Effect pass → rgba16float (or rgba8unorm fallback) offscreen, or straight to canvas
+  const offscreenFormat = "rgba16float";
+  let effectTargetsFormat = offscreenFormat;
+  try {
+    // Probe: some adapters may not filter rgba16float
+    device.createTexture({
+      size: [4, 4],
+      format: offscreenFormat,
+      usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+    }).destroy();
+  } catch {
+    effectTargetsFormat = "rgba8unorm";
+  }
+
+  const effectPipelineScreen = device.createRenderPipeline({
     layout: "auto",
-    vertex: { module, entryPoint: "vs_main" },
+    vertex: { module: effectModule, entryPoint: "vs_main" },
     fragment: {
-      module,
+      module: effectModule,
       entryPoint: "fs_main",
       targets: [{ format }],
     },
     primitive: { topology: "triangle-list" },
   });
 
-  const uniformBuffer = device.createBuffer({
-    size: UNIFORM_BYTES,
+  const effectPipelineOff = device.createRenderPipeline({
+    layout: "auto",
+    vertex: { module: effectModule, entryPoint: "vs_main" },
+    fragment: {
+      module: effectModule,
+      entryPoint: "fs_main",
+      targets: [{ format: effectTargetsFormat }],
+    },
+    primitive: { topology: "triangle-list" },
+  });
+
+  const compPipeline = device.createRenderPipeline({
+    layout: "auto",
+    vertex: { module: compModule, entryPoint: "vs_main" },
+    fragment: {
+      module: compModule,
+      entryPoint: "fs_main",
+      targets: [{ format }],
+    },
+    primitive: { topology: "triangle-list" },
+  });
+
+  const effectUniformBuffer = device.createBuffer({
+    size: EFFECT_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  const effectUniformBufferB = device.createBuffer({
+    size: EFFECT_BYTES,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  });
+  const compUniformBuffer = device.createBuffer({
+    size: COMP_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   });
 
-  const bindGroup = device.createBindGroup({
-    layout: pipeline.getBindGroupLayout(0),
-    entries: [{ binding: 0, resource: { buffer: uniformBuffer } }],
+  const sampler = device.createSampler({
+    magFilter: "linear",
+    minFilter: "linear",
   });
 
-  const uniforms = new Float32Array(UNIFORM_FLOATS);
+  const effectBindA = device.createBindGroup({
+    layout: effectPipelineOff.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: effectUniformBuffer } }],
+  });
+  const effectBindB = device.createBindGroup({
+    layout: effectPipelineOff.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: effectUniformBufferB } }],
+  });
+  const effectBindScreen = device.createBindGroup({
+    layout: effectPipelineScreen.getBindGroupLayout(0),
+    entries: [{ binding: 0, resource: { buffer: effectUniformBuffer } }],
+  });
+
+  let rtA = null;
+  let rtB = null;
+  let rtW = 0;
+  let rtH = 0;
+  let compBind = null;
+
+  function ensureTargets(fullW, fullH) {
+    // Always full-res dual targets (no ½res upscale — that caused visible pixel grids)
+    const w = Math.max(1, Math.floor(fullW));
+    const h = Math.max(1, Math.floor(fullH));
+    if (rtA && rtW === w && rtH === h) return;
+    rtA?.destroy();
+    rtB?.destroy();
+    rtW = w;
+    rtH = h;
+    const usage =
+      GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING;
+    rtA = device.createTexture({
+      size: [w, h],
+      format: effectTargetsFormat,
+      usage,
+    });
+    rtB = device.createTexture({
+      size: [w, h],
+      format: effectTargetsFormat,
+      usage,
+    });
+    compBind = device.createBindGroup({
+      layout: compPipeline.getBindGroupLayout(0),
+      entries: [
+        { binding: 0, resource: { buffer: compUniformBuffer } },
+        { binding: 1, resource: sampler },
+        { binding: 2, resource: rtA.createView() },
+        { binding: 3, resource: rtB.createView() },
+      ],
+    });
+  }
+
+  const effectUniforms = new Float32Array(EFFECT_FLOATS);
+  const effectUniformsB = new Float32Array(EFFECT_FLOATS);
+  const compUniforms = new Float32Array(COMP_FLOATS);
+
+  function writeEffect(buf, arr, effect, w, h) {
+    // Genome morph underneath: lerp mirrors / theme seed feel during fade
+    const morph = state.effectMix;
+    const theme =
+      effect === state.effectA
+        ? state.effectA.theme + (state.effectB.theme - state.effectA.theme) * morph * 0.35
+        : state.effectB.theme + (state.effectA.theme - state.effectB.theme) * (1 - morph) * 0.15;
+    const mirrors =
+      effect === state.effectA
+        ? state.effectA.mirrors + (state.effectB.mirrors - state.effectA.mirrors) * morph * 0.4
+        : state.effectB.mirrors + (state.effectA.mirrors - state.effectB.mirrors) * (1 - morph) * 0.2;
+
+    arr[0] = w;
+    arr[1] = h;
+    arr[2] = state.time;
+    arr[3] = effect.seed;
+    arr[4] = state.mouse[0];
+    arr[5] = state.mouse[1];
+    arr[6] = theme;
+    arr[7] = mirrors;
+    arr[8] = state.intensity;
+    arr[9] = effect.layout;
+    arr[10] = state.ringAmount;
+    arr[11] = state.audioLevel;
+    arr[12] = state.highQuality ? 1 : 0;
+    arr[13] = 0;
+    arr[14] = 0;
+    arr[15] = 0;
+    device.queue.writeBuffer(buf, 0, arr);
+  }
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const maxDim = 3840;
-    let w = Math.floor(window.innerWidth * dpr);
-    let h = Math.floor(window.innerHeight * dpr);
+    // Match the CSS box of #gpu so the swapchain isn't a small buffer stretched fullscreen
+    const cssW = canvas.clientWidth || window.innerWidth;
+    const cssH = canvas.clientHeight || window.innerHeight;
+    let w = Math.max(1, Math.floor(cssW * dpr));
+    let h = Math.max(1, Math.floor(cssH * dpr));
     const scale = Math.min(1, maxDim / Math.max(w, h));
     w = Math.max(1, Math.floor(w * scale));
     h = Math.max(1, Math.floor(h * scale));
     if (canvas.width !== w || canvas.height !== h) {
       canvas.width = w;
       canvas.height = h;
+      // Reconfigure so presentation size tracks the drawing buffer
+      try {
+        context.configure({
+          device,
+          format,
+          alphaMode: "opaque",
+          usage: GPUTextureUsage.RENDER_ATTACHMENT,
+          ...(state.presentMode !== "default" ? { presentMode: state.presentMode } : {}),
+        });
+      } catch {
+        context.configure({
+          device,
+          format,
+          alphaMode: "opaque",
+          usage: GPUTextureUsage.RENDER_ATTACHMENT,
+        });
+      }
+      rtA?.destroy();
+      rtB?.destroy();
+      rtA = rtB = null;
+      rtW = rtH = 0;
     }
   }
 
@@ -274,7 +554,8 @@ async function init() {
   });
 
   canvas.addEventListener("click", () => {
-    state.seed = Math.random() * 10;
+    // Advance dual-effect morph to the next layout (same as T) — not a color remix
+    state.time += EFFECT_DWELL * 0.92;
   });
 
   window.addEventListener("keydown", (e) => {
@@ -287,15 +568,51 @@ async function init() {
       state.autoTheme = false;
       state.pinnedTheme = Number(e.key) - 1;
     } else if (e.key === "t" || e.key === "T") {
-      // Jump toward next layout morph
-      state.time += LAYOUT_DWELL * 0.9;
+      // Jump toward next effect morph (layout/genome)
+      state.time += EFFECT_DWELL * 0.92;
     } else if (e.key === "c" || e.key === "C") {
-      // Jump toward next ring episode
       state.time += RING_DWELL * 0.95;
     } else if (e.key === "r" || e.key === "R") {
       state.seed = Math.random() * 10;
       state.autoTheme = true;
-      state.time += THEME_DWELL * 0.85;
+      state.time += EFFECT_DWELL * 0.85;
+    } else if (e.key === "x" || e.key === "X") {
+      // Force next transition + cycle mix mode
+      state.pinnedMixMode =
+        state.pinnedMixMode == null
+          ? MIX.HEX
+          : (state.pinnedMixMode + 1) % 4;
+      state.time += EFFECT_DWELL * 0.95;
+    } else if (e.key === "m" || e.key === "M") {
+      // Pin / cycle mix mode without jumping time
+      state.pinnedMixMode =
+        state.pinnedMixMode == null
+          ? MIX.HEX
+          : (state.pinnedMixMode + 1) % 4;
+      state.mixMode = state.pinnedMixMode;
+    } else if (e.key === "v" || e.key === "V") {
+      state.highQuality = !state.highQuality;
+    } else if (e.key === "a" || e.key === "A") {
+      // Optional mic for eelaudio — safe no-op if denied/unavailable
+      toggleMicAudio();
+    } else if ("fuglehngiz".includes(e.key.toLowerCase()) && e.key.length === 1) {
+      const map = {
+        f: 0, // flock
+        u: 1, // truchet
+        g: 2, // golden
+        l: 3, // logspiral
+        e: 5, // eel
+        h: 7, // gulal_pulse
+        n: 8, // neonwave
+        i: 9, // ai_heart
+        z: 10, // starry_pl
+      };
+      const k = e.key.toLowerCase();
+      if (map[k] != null) jumpToLayout(map[k]);
+    } else if (e.key === "p" || e.key === "P") {
+      jumpToLayout(4); // apollo
+    } else if (e.key === "j" || e.key === "J") {
+      jumpToLayout(6); // eelaudio
     } else if (e.key === "+" || e.key === "=") {
       state.intensity = Math.min(1.8, state.intensity + 0.06);
     } else if (e.key === "-" || e.key === "_") {
@@ -308,54 +625,110 @@ async function init() {
     state.last = now;
     updateGenome(dt);
 
+    const transitioning = state.effectMix > 0.001 && state.effectMix < 0.999;
+
     state.frames += 1;
     if (now - state.fpsWindowStart >= 500) {
       state.fps = (state.frames * 1000) / (now - state.fpsWindowStart);
       state.frames = 0;
       state.fpsWindowStart = now;
-      statsEl.textContent = `${state.fps.toFixed(0)} fps · ${canvas.width}×${canvas.height} · ${layoutLabel()} · ${themeLabel()} · ×${mirrorsLabel()} · ${ringLabel()}`;
+      const mix = mixLabel();
+      const q = transitioning ? qualityLabel() : "1pass";
+      statsEl.textContent = `${state.fps.toFixed(0)} fps · ${canvas.width}×${canvas.height} · ${layoutLabel()} · ${themeLabel()} · ×${mirrorsLabel()} · ${ringLabel()} · ${mix} · ${q}`;
     }
-
-    uniforms[0] = canvas.width;
-    uniforms[1] = canvas.height;
-    uniforms[2] = state.time;
-    uniforms[3] = state.seed;
-    uniforms[4] = state.mouse[0];
-    uniforms[5] = state.mouse[1];
-    uniforms[6] = state.themeA;
-    uniforms[7] = state.themeB;
-    uniforms[8] = state.themeMix;
-    uniforms[9] = state.mirrorsA;
-    uniforms[10] = state.mirrorsB;
-    uniforms[11] = state.mirrorMix;
-    uniforms[12] = state.intensity;
-    uniforms[13] = state.layoutA;
-    uniforms[14] = state.layoutB;
-    uniforms[15] = state.layoutMix;
-    uniforms[16] = state.ringAmount;
-    uniforms[17] = 0;
-    uniforms[18] = 0;
-    uniforms[19] = 0;
-    device.queue.writeBuffer(uniformBuffer, 0, uniforms);
 
     const encoder = device.createCommandEncoder();
     const view = context.getCurrentTexture().createView();
-    const pass = encoder.beginRenderPass({
-      colorAttachments: [
-        {
-          view,
-          clearValue: { r: 0.01, g: 0.015, b: 0.04, a: 1 },
-          loadOp: "clear",
-          storeOp: "store",
-        },
-      ],
-    });
-    pass.setPipeline(pipeline);
-    pass.setBindGroup(0, bindGroup);
-    pass.draw(3);
-    pass.end();
-    device.queue.submit([encoder.finish()]);
 
+    if (!transitioning) {
+      // Single effect → screen (full res, cheapest path)
+      const effect = state.effectMix >= 0.5 ? state.effectB : state.effectA;
+      writeEffect(effectUniformBuffer, effectUniforms, effect, canvas.width, canvas.height);
+      const pass = encoder.beginRenderPass({
+        colorAttachments: [
+          {
+            view,
+            clearValue: { r: 0.01, g: 0.015, b: 0.04, a: 1 },
+            loadOp: "clear",
+            storeOp: "store",
+          },
+        ],
+      });
+      pass.setPipeline(effectPipelineScreen);
+      pass.setBindGroup(0, effectBindScreen);
+      pass.draw(3);
+      pass.end();
+    } else {
+      // Dual-render A+B (both advance in time) → composite
+      ensureTargets(canvas.width, canvas.height);
+      writeEffect(effectUniformBuffer, effectUniforms, state.effectA, rtW, rtH);
+      writeEffect(effectUniformBufferB, effectUniformsB, state.effectB, rtW, rtH);
+
+      const clear = { r: 0.01, g: 0.015, b: 0.04, a: 1 };
+      {
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [
+            {
+              view: rtA.createView(),
+              clearValue: clear,
+              loadOp: "clear",
+              storeOp: "store",
+            },
+          ],
+        });
+        pass.setPipeline(effectPipelineOff);
+        pass.setBindGroup(0, effectBindA);
+        pass.draw(3);
+        pass.end();
+      }
+      {
+        const pass = encoder.beginRenderPass({
+          colorAttachments: [
+            {
+              view: rtB.createView(),
+              clearValue: clear,
+              loadOp: "clear",
+              storeOp: "store",
+            },
+          ],
+        });
+        pass.setPipeline(effectPipelineOff);
+        pass.setBindGroup(0, effectBindB);
+        pass.draw(3);
+        pass.end();
+      }
+
+      compUniforms[0] = canvas.width;
+      compUniforms[1] = canvas.height;
+      compUniforms[2] = state.effectMix;
+      compUniforms[3] = state.mixMode;
+      compUniforms[4] = state.time;
+      compUniforms[5] = state.seed;
+      compUniforms[6] = state.effectA.mirrors;
+      compUniforms[7] = state.effectB.mirrors;
+      compUniforms[8] = state.effectMix; // genome morph factor
+      compUniforms[9] = 0;
+      compUniforms[10] = 0;
+      compUniforms[11] = 0;
+      device.queue.writeBuffer(compUniformBuffer, 0, compUniforms);
+
+      const pass = encoder.beginRenderPass({
+        colorAttachments: [
+          {
+            view,
+            clearValue: clear,
+            loadOp: "clear",
+            storeOp: "store",
+          },
+        ],
+      });
+      pass.setPipeline(compPipeline);
+      pass.setBindGroup(0, compBind);
+      pass.draw(3);
+      pass.end();
+    }
+
+    device.queue.submit([encoder.finish()]);
     requestAnimationFrame(frame);
   }
 
