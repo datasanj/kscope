@@ -47,16 +47,16 @@ fn vs_main(@builtin(vertex_index) vi: u32) -> VSOut {
   return out;
 }
 
-// Holi gulal powder swatches — vibrant, saturated
+// Holi gulal powder swatches — neon-max saturation (no pastel / mud)
 fn holi_powder(i: f32) -> vec3f {
   let k = i32(floor(i)) % 7;
-  if (k == 0) { return vec3f(0.98, 0.18, 0.62); } // gulabi pink
-  if (k == 1) { return vec3f(1.00, 0.48, 0.08); } // kesar saffron
-  if (k == 2) { return vec3f(0.98, 0.86, 0.12); } // haldi yellow
-  if (k == 3) { return vec3f(0.18, 0.88, 0.32); } // hari green
-  if (k == 4) { return vec3f(0.28, 0.38, 1.00); } // neela electric blue
-  if (k == 5) { return vec3f(0.95, 0.12, 0.18); } // laal red
-  return vec3f(0.92, 0.10, 0.88);                 // fuchsia / violet
+  if (k == 0) { return vec3f(1.00, 0.06, 0.52); } // gulabi pink
+  if (k == 1) { return vec3f(1.00, 0.38, 0.00); } // kesar saffron
+  if (k == 2) { return vec3f(1.00, 0.92, 0.02); } // haldi yellow
+  if (k == 3) { return vec3f(0.02, 1.00, 0.18); } // hari green
+  if (k == 4) { return vec3f(0.08, 0.22, 1.00); } // neela electric blue
+  if (k == 5) { return vec3f(1.00, 0.04, 0.08); } // laal red
+  return vec3f(0.82, 0.02, 1.00);                 // fuchsia / violet
 }
 
 // Mouse → Holi color cycle (not pan). X+Y drive palette phase + theme bias mix.
@@ -74,56 +74,54 @@ fn rainbow(t: f32) -> vec3f {
   let n = x * 7.0;
   let i = floor(n);
   let f = fract(n);
-  let s = f * f * (3.0 - 2.0 * f);
+  // Sharp powder borders — wide pure lanes, short blend (avoids brown mud)
+  let s = smoothstep(0.12, 0.88, f);
   let a = holi_powder(i);
   let b = holi_powder(i + 1.0);
-  // Punchy gulal — slight lift, still short of whiteout
-  return mix(a, b, s) * 1.05 + vec3f(0.03, 0.015, 0.025);
+  return mix(a, b, s) * 1.15;
 }
 
 fn palette_theme(t: f32, theme: f32) -> vec3f {
-  // Always a multi-powder Holi rainbow — never monochrome.
-  // Mouse phase shifts hue lanes; pinned themes still nudge bias.
+  // Dominant powder + one accent — never 5-way average (that washed to gray-brown).
+  // Mouse phase shifts hue lanes; pinned themes still nudge bias. Always multi-hue.
   let phase = mouse_color_phase();
   let tt = t + phase;
   let theme_m = mouse_theme_mix(theme);
-  var col = rainbow(tt) * 0.34
-    + rainbow(tt + 0.14) * 0.22
-    + rainbow(tt + 0.33) * 0.18
-    + rainbow(tt + 0.52) * 0.14
-    + rainbow(tt + 0.71) * 0.12;
+  var col = rainbow(tt) * 0.78
+    + rainbow(tt + 0.42) * 0.32;
+  col += holi_powder(floor(tt * 7.0 + theme_m)) * 0.28;
 
   let th = mod1(floor(theme_m + 0.5), 6.0);
-  var bias = vec3f(1.08, 1.02, 1.06); // rang-like default
+  var bias = vec3f(1.14, 1.06, 1.12); // rang — loud full riot
   var accent = 0.0;
   if (th < 0.5) {
-    // gulabi — still keep saffron/green/blue sparks
-    bias = vec3f(1.16, 0.90, 1.10);
+    // gulabi — pink-forward, keep saffron/green/blue sparks
+    bias = vec3f(1.28, 0.82, 1.18);
     accent = 0.05;
   } else if (th < 1.5) {
-    bias = vec3f(1.18, 0.88, 0.95);
+    bias = vec3f(1.32, 0.78, 0.88);
     accent = 0.72;
   } else if (th < 2.5) {
-    bias = vec3f(1.14, 1.06, 0.82);
+    bias = vec3f(1.26, 1.12, 0.72);
     accent = 0.22;
   } else if (th < 3.5) {
-    bias = vec3f(0.88, 1.16, 0.95);
+    bias = vec3f(0.78, 1.30, 0.88);
     accent = 0.42;
   } else if (th < 4.5) {
-    bias = vec3f(1.10, 1.04, 1.08);
+    bias = vec3f(1.18, 1.08, 1.16);
     accent = 0.0;
   } else {
-    bias = vec3f(0.92, 0.95, 1.18);
+    bias = vec3f(0.82, 0.88, 1.32);
     accent = 0.58;
   }
 
   col *= bias;
-  // Extra gulal lanes so every theme stays a riot
-  col += rainbow(tt * 1.7 + accent) * 0.28;
-  col += rainbow(tt * 0.55 + 0.41 + theme_m * 0.09) * 0.18;
-  col += holi_powder(floor(tt * 7.0 + theme_m + 2.0)) * 0.10;
-  // Soft channel ceiling — vivid powder, not whiteout
-  col = col / (1.0 + max(col - vec3f(0.92), vec3f(0.0)) * 1.55);
+  // Extra gulal sparks so every theme stays a riot (not a washed pastel)
+  col += rainbow(tt * 1.7 + accent) * 0.38;
+  col += holi_powder(floor(tt * 7.0 + theme_m + 2.0)) * 0.20;
+  col += rainbow(tt * 0.55 + 0.41 + theme_m * 0.09) * 0.12;
+  // Soft knee only past HDR white — midtones keep full chroma
+  col = col / (1.0 + max(col - vec3f(1.25), vec3f(0.0)) * 0.75);
   return max(col, vec3f(0.0));
 }
 
@@ -193,10 +191,15 @@ fn soft_glow(d: f32, k: f32) -> f32 {
 }
 
 fn filmic_holi(c: vec3f) -> vec3f {
-  let luma = max(dot(c, vec3f(0.2126, 0.7152, 0.0722)), 1e-4);
-  let mapped = luma * (1.02 / (1.0 + luma * 0.95));
-  var out = c * (mapped / luma);
-  out = out / (1.0 + max(out - vec3f(0.68), vec3f(0.0)) * 2.8);
+  // Chroma-preserving soft knee — old path crushed at 0.68 and killed gulal.
+  // Only compress extreme HDR; then restore / boost saturation.
+  let knee = 1.35;
+  var out = c / (1.0 + max(c - vec3f(knee), vec3f(0.0)) * 1.05);
+  let luma = max(dot(out, vec3f(0.2126, 0.7152, 0.0722)), 1e-4);
+  let mapped = luma / (1.0 + max(luma - 1.25, 0.0) * 0.5);
+  out *= mapped / luma;
+  let l2 = max(dot(out, vec3f(0.2126, 0.7152, 0.0722)), 1e-4);
+  out = mix(vec3f(l2), out, 1.38);
   return out;
 }
 
@@ -393,10 +396,10 @@ fn clogo(p_in: vec2f, z: f32, t: f32) -> CLogo {
 
   // Riot Holi on angular petals — several gulal hues in one flower
   let hue_t = fract(s.z / PI + t * 0.5);
-  let rgb = palette_theme(hue_t + u.theme * 0.05, u.theme) * 0.72
-    + palette_theme(hue_t + 0.28, u.theme) * 0.28;
+  let rgb = palette_theme(hue_t + u.theme * 0.05, u.theme) * 0.78
+    + palette_theme(hue_t + 0.28, u.theme) * 0.32;
   var out: CLogo;
-  out.color = rgb * max(s.x, 0.35) + rainbow(hue_t + 0.5) * s.x * 0.25;
+  out.color = rgb * max(s.x, 0.42) + rainbow(hue_t + 0.5) * s.x * 0.4;
   out.cover = s.y;
   out.dist = s.w;
   return out;
@@ -452,8 +455,8 @@ fn flock_effect(uv_in: vec2f) -> vec3f {
   col += palette(h + 0.35) * soft_glow(sd_hex(hp.yx, 0.48), 14.0) * ring * 0.35;
   col += rainbow(h + 0.6) * soft_glow(sd_hex(hp.yx, 0.35), 10.0) * 0.12;
 
-  // Soft vignette (lighter than IQ postProcess — finish() handles filmic/Holi)
-  let vig = 0.62 + 0.38 * pow(19.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.7);
+  // Soft vignette — keep corners dark for contrast, don't crush mid-powder
+  let vig = 0.78 + 0.22 * pow(19.0 * q.x * q.y * (1.0 - q.x) * (1.0 - q.y), 0.7);
   col *= vig;
 
   return col;
@@ -508,10 +511,10 @@ fn truchet_effect(uv_in: vec2f) -> vec3f {
   let c1 = palette_theme(lane + 0.22, u.theme);
   let c2 = holi_powder(floor(h * 7.0));
   let c3 = holi_powder(floor(h * 7.0 + 3.0));
-  var col = (c0 * 0.55 + c1 * 0.45) * (0.25 + line * 1.15);
-  col += c2 * soft_glow(length(f) - 0.22, 9.0) * 0.45;
-  col += c3 * soft_glow(stroke - w * 0.5, 16.0) * 0.35;
-  col += rainbow(lane + 0.5) * soft_glow(min(d_arc_a, d_arc_b) - 0.12, 11.0) * 0.4;
+  var col = (c0 * 0.55 + c1 * 0.45) * (0.42 + line * 1.35);
+  col += c2 * soft_glow(length(f) - 0.22, 9.0) * 0.65;
+  col += c3 * soft_glow(stroke - w * 0.5, 16.0) * 0.5;
+  col += rainbow(lane + 0.5) * soft_glow(min(d_arc_a, d_arc_b) - 0.12, 11.0) * 0.55;
 
   // Nested polar Holi bands
   let pr = length(q);
@@ -527,14 +530,17 @@ fn truchet_effect(uv_in: vec2f) -> vec3f {
 
 fn finish(col_in: vec3f) -> vec4f {
   var final_color = col_in * u.intensity;
-  // Slight saturation lift so gulal reads loud before filmic clamp
+  // Hard sat lift — Electric-Sheep-alive gulal, not pastel
   let luma = max(dot(final_color, vec3f(0.2126, 0.7152, 0.0722)), 1e-4);
-  final_color = mix(vec3f(luma), final_color, 1.22);
+  final_color = mix(vec3f(luma), final_color, 1.48);
+  // Crush muddy floor toward deep black vs neon powder
+  final_color = max(final_color - vec3f(0.025), vec3f(0.0)) * 1.14;
   final_color = filmic_holi(final_color);
-  final_color = pow(clamp(final_color, vec3f(0.0), vec3f(1.0)), vec3f(0.94));
-  // Warm Holi pedestal — never cold cyan void
-  let pedestal = vec3f(0.035, 0.012, 0.028) + rainbow(u.time * 0.02 + u.seed) * 0.03;
-  final_color = pedestal + final_color * 0.97;
+  // Slightly steeper than linear — punchier contrast (0.94 was lifting shadows dull)
+  final_color = pow(clamp(final_color, vec3f(0.0), vec3f(1.0)), vec3f(1.06));
+  // Near-black void + tiny powder sparkle (no gray-brown pedestal)
+  let spark = rainbow(u.time * 0.02 + u.seed) * 0.01;
+  final_color = clamp(final_color * 0.995 + spark, vec3f(0.0), vec3f(1.0));
   return vec4f(final_color, 1.0);
 }
 
@@ -589,10 +595,10 @@ fn golden_effect(uv_in: vec2f) -> vec3f {
   // Golden + Holi riot
   var col = palette_theme(0.22 + l * 0.7 - t * 0.08, u.theme);
   col = mix(col, holi_powder(1.0) * 1.2, 0.35); // kesar gold lean
-  col = mix(col * (1.0 - tanh(0.75 * l)) * 0.55, col, smoothstep(0.02, -0.02, -d));
-  col += rainbow(l * 0.8 + t * 0.1) * exp(-(12.0 + 80.0 * tanh(l)) * max(d, 0.0));
-  col += holi_powder(2.0) * soft_glow(d, 40.0) * 0.8;
-  return col * 1.15;
+  col = mix(col * (1.0 - tanh(0.75 * l)) * 0.72, col, smoothstep(0.02, -0.02, -d));
+  col += rainbow(l * 0.8 + t * 0.1) * exp(-(12.0 + 80.0 * tanh(l)) * max(d, 0.0)) * 1.25;
+  col += holi_powder(2.0) * soft_glow(d, 40.0) * 1.05;
+  return col * 1.28;
 }
 
 // ---- 4 Log spiral of spheres (CC0 mrange msGXRD) — Holi log-polar spheres ----
@@ -643,11 +649,11 @@ fn apollo_twist_effect(uv_in: vec2f) -> vec3f {
   let d = apollonian_de(pp / z, 1.2) * z * zoom;
   let l = length(p * zoom);
   var col = palette_theme(0.75 * l - 0.3 * t + 0.3, u.theme);
-  col *= (1.0 - tanh(0.75 * l)) * 0.5;
+  col *= (1.0 - tanh(0.75 * l)) * 0.72;
   col = mix(col, palette_theme(l * 1.1 + t * 0.05, u.theme), smoothstep(-aa, aa, -d));
-  col += 0.55 * rainbow(l + t * 0.08) * exp(-(10.0 + 100.0 * tanh(l)) * max(d, 0.0));
+  col += 0.85 * rainbow(l + t * 0.08) * exp(-(10.0 + 100.0 * tanh(l)) * max(d, 0.0));
   // Soft dual “lights”
-  col += palette(0.1) * (1.0 - exp(-15.0 * max(d + 0.02, 0.0))) * 0.15;
+  col += palette(0.1) * (1.0 - exp(-15.0 * max(d + 0.02, 0.0))) * 0.28;
   return col;
 }
 
@@ -785,21 +791,22 @@ fn gulal_pulse_effect(uv_in: vec2f) -> vec3f {
   // Bright soft core
   let core = 0.14 / (r * r * 16.0 + 0.07);
 
-  // Multi-hue: IQ cosine lanes (MIT) remixed with Holi powders — loud rainbow, not cyan-only
+  // Multi-hue: IQ cosine lanes (MIT) remixed with Holi powders — loud rainbow, not gray mid
   let hue = r * 0.52 - t * 0.07 + ang / TAU + u.seed * 0.03;
   let cos_col = iq_cos_palette(
     hue,
-    vec3f(0.55, 0.48, 0.55),
-    vec3f(0.55, 0.50, 0.55),
-    vec3f(1.0, 1.0, 0.95),
+    vec3f(0.55, 0.35, 0.45),
+    vec3f(0.55, 0.55, 0.55),
+    vec3f(1.0, 1.0, 1.0),
     vec3f(0.00, 0.33, 0.67),
   );
-  var col = mix(cos_col, palette_theme(hue, u.theme), 0.62);
-  col += holi_powder(floor(hue * 7.0 + 1.0)) * 0.38;
-  col += rainbow(hue * 1.4 + 0.2) * 0.22;
+  // Prefer Holi palette; cosine only for shimmer (gray a=0.55 was washing the look)
+  var col = mix(cos_col, palette_theme(hue, u.theme), 0.82);
+  col += holi_powder(floor(hue * 7.0 + 1.0)) * 0.55;
+  col += rainbow(hue * 1.4 + 0.2) * 0.35;
 
-  col *= rings * 1.4 + spokes * 0.42;
-  col += palette_theme(hue + 0.18, u.theme) * core * 1.15;
+  col *= rings * 1.55 + spokes * 0.5;
+  col += palette_theme(hue + 0.18, u.theme) * core * 1.35;
   // Outer storm ring from ring_amount genome
   col += palette(hue + 0.45) * soft_glow(r - (0.78 + 0.12 * sin(t * 0.6)), 4.2) * u.ring_amount * 0.5;
   // Soft falloff glow toward edges
@@ -860,10 +867,10 @@ fn neonwave_effect(uv_in: vec2f) -> vec3f {
   // Holi sky + sun glow
   let ldir = normalize(vec3f(0.15, 0.35, 1.0));
   let lf = pow(max(dot(ldir, rd), 0.0), 48.0);
-  var sky = palette_theme(0.08 + rd.y * 0.2, u.theme) * (0.08 + 0.55 * lf);
-  sky += holi_powder(1.0) * lf * 0.8;
-  sky += rainbow(atan2(rd.x, rd.z) / TAU + t * 0.05) * smoothstep(0.2, 0.0, abs(rd.y + 0.05)) * 0.35;
-  sky += palette(0.7) * pow(hash21(floor(rd.xz * 80.0)), 24.0) * step(0.0, rd.y) * 0.5;
+  var sky = palette_theme(0.08 + rd.y * 0.2, u.theme) * (0.12 + 0.7 * lf);
+  sky += holi_powder(1.0) * lf * 1.05;
+  sky += rainbow(atan2(rd.x, rd.z) / TAU + t * 0.05) * smoothstep(0.2, 0.0, abs(rd.y + 0.05)) * 0.55;
+  sky += palette(0.7) * pow(hash21(floor(rd.xz * 80.0)), 24.0) * step(0.0, rd.y) * 0.7;
 
   let plane_dist = 1.05;
   let furthest = quality_steps(8, 12);
@@ -886,8 +893,8 @@ fn neonwave_effect(uv_in: vec2f) -> vec3f {
     let cover = smoothstep(aa, -aa, d);
     let h = hash21(vec2f(nz + f32(i), u.seed));
     var pcol = palette_theme(0.15 + h * 0.5 + pp.z * 0.04 + t * 0.08, u.theme);
-    pcol += holi_powder(floor(h * 7.0)) * 0.35;
-    pcol *= 0.55 + 0.45 * soft_glow(d, 6.0);
+    pcol += holi_powder(floor(h * 7.0)) * 0.55;
+    pcol *= 0.72 + 0.45 * soft_glow(d, 6.0);
     let fade_in = smoothstep(max_dist, fade_dist, pd);
     pcol = mix(sky, pcol, fade_in);
     let pw = cover * fade_in * 0.85;
@@ -984,8 +991,8 @@ fn starry_pl_effect(uv_in: vec2f) -> vec3f {
   let vv = cross(ww, uu);
   let rd = normalize(p.x * uu + p.y * vv + 1.8 * ww);
 
-  var sky = palette_theme(0.6 + rd.y * 0.15, u.theme) * 0.15;
-  sky += rainbow(atan2(rd.x, rd.z) / TAU) * 0.08;
+  var sky = palette_theme(0.6 + rd.y * 0.15, u.theme) * 0.22;
+  sky += rainbow(atan2(rd.x, rd.z) / TAU) * 0.16;
   let plane_dist = 0.5;
   let furthest = quality_steps(10, 16);
   var acol = vec4f(0.0);
@@ -1003,8 +1010,8 @@ fn starry_pl_effect(uv_in: vec2f) -> vec3f {
     let aa = 0.02 * pd;
     let cover = smoothstep(aa, -aa, d0);
     var pcol = palette_theme(0.2 + f32(i) * 0.07 + pp.z * 0.05, u.theme);
-    pcol += holi_powder(f32(i % 7)) * 0.4;
-    pcol *= 0.7 + 0.3 * soft_glow(d0, 10.0);
+    pcol += holi_powder(f32(i % 7)) * 0.65;
+    pcol *= 0.85 + 0.35 * soft_glow(d0, 10.0);
     let fade = smoothstep(plane_dist * f32(furthest), plane_dist * f32(max(furthest - 3, 1)), pd);
     pcol = mix(sky, pcol, fade);
     let pw = cover * fade * 0.9;

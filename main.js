@@ -72,7 +72,7 @@ const state = {
   seed: Math.random() * 10,
   autoTheme: true,
   pinnedTheme: 4, // rang — full Holi riot default bias
-  intensity: 1.05,
+  intensity: 1.22,
   paused: false,
   mouse: [0.5, 0.5],
   last: performance.now(),
