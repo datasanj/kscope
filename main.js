@@ -19,36 +19,29 @@ const THEMES = [
   { id: 5, name: "neela" },
 ];
 
-// Colorful survivors only — boring kaleido/tunnel/hybrid stay gone
+// 60fps Holi set — heavy raymarch layouts culled (see EFFECTS_ADDED.md)
 const LAYOUTS = [
   { id: 0, name: "flock" },
   { id: 1, name: "truchet" },
-  { id: 2, name: "starnest" },
-  { id: 3, name: "golden" },
-  { id: 4, name: "logspiral" },
-  { id: 5, name: "apollo" },
-  { id: 6, name: "eel" },
-  { id: 7, name: "eelaudio" },
-  { id: 8, name: "reflect" },
-  { id: 9, name: "bubble" },
-  { id: 10, name: "gulal_pulse" },
-  // Corrective pass — mrange CC0 (Shaderfuse SoTW quotes author CC0:). See EFFECTS_ADDED.md
-  { id: 11, name: "neonwave" },
-  { id: 12, name: "ai_heart" },
-  { id: 13, name: "mandelbulb" },
-  { id: 14, name: "twinkle_tun" },
-  { id: 15, name: "starry_pl" },
-  { id: 16, name: "clearly_bug" },
-  { id: 17, name: "beats4d" },
+  { id: 2, name: "golden" },
+  { id: 3, name: "logspiral" },
+  { id: 4, name: "apollo" },
+  { id: 5, name: "eel" },
+  { id: 6, name: "eelaudio" },
+  { id: 7, name: "gulal_pulse" },
+  { id: 8, name: "neonwave" },
+  { id: 9, name: "ai_heart" },
+  { id: 10, name: "starry_pl" },
 ];
 
 const LAYOUT_FLOCK = 0;
 const LAYOUT_TRUCHET = 1;
+const LAYOUT_EELAUDIO = 6;
 
-// Auto: prior colorful set + CC0 mrange ports
+// Auto-cycle remaining colorful / cheaper layouts only
 const LAYOUT_SEQ = [
-  0, 11, 2, 10, 14, 1, 12, 5, 15, 3, 13, 6, 16, 4, 17, 9, 8, 7,
-  0, 14, 11, 2, 12, 10, 15, 5, 13, 3, 16, 6, 17, 4, 9, 8,
+  0, 8, 2, 7, 1, 9, 4, 10, 3, 5, 6,
+  0, 9, 8, 2, 7, 4, 10, 1, 3, 5, 6,
 ];
 
 const MIRROR_SEQ = [3, 4, 5, 6, 4, 8, 5, 3, 7, 4, 6, 5, 4, 3];
@@ -288,7 +281,10 @@ function sampleAudioLevel() {
   if (!state.audioEnabled || !analyser || !audioData) {
     // Faux reactivity always available for eelaudio layout
     const faux = 0.55 + 0.45 * Math.sin(state.time * 2.7) * Math.sin(state.time * 1.3 + 1.7);
-    state.audioLevel = state.effectA.layout === 7 || state.effectB.layout === 7 ? faux * 0.85 : 0;
+    state.audioLevel =
+      state.effectA.layout === LAYOUT_EELAUDIO || state.effectB.layout === LAYOUT_EELAUDIO
+        ? faux * 0.85
+        : 0;
     return;
   }
   analyser.getByteFrequencyData(audioData);
@@ -588,31 +584,24 @@ async function init() {
     } else if (e.key === "a" || e.key === "A") {
       // Optional mic for eelaudio — safe no-op if denied/unavailable
       toggleMicAudio();
-    } else if ("fuglesbyhndikzwo".includes(e.key.toLowerCase()) && e.key.length === 1) {
+    } else if ("fuglehngiz".includes(e.key.toLowerCase()) && e.key.length === 1) {
       const map = {
         f: 0, // flock
         u: 1, // truchet
-        s: 2, // starnest
-        g: 3, // golden
-        l: 4, // logspiral
-        e: 6, // eel
-        b: 9, // bubble
-        y: 8, // reflect (self)
-        h: 10, // gulal_pulse
-        n: 11, // neonwave
-        i: 12, // ai_heart
-        d: 13, // mandelbulb
-        k: 14, // twinkle_tun
-        z: 15, // starry_pl
-        w: 16, // clearly_bug
-        o: 17, // beats4d
+        g: 2, // golden
+        l: 3, // logspiral
+        e: 5, // eel
+        h: 7, // gulal_pulse
+        n: 8, // neonwave
+        i: 9, // ai_heart
+        z: 10, // starry_pl
       };
       const k = e.key.toLowerCase();
       if (map[k] != null) jumpToLayout(map[k]);
     } else if (e.key === "p" || e.key === "P") {
-      jumpToLayout(5); // apollo
+      jumpToLayout(4); // apollo
     } else if (e.key === "j" || e.key === "J") {
-      jumpToLayout(7); // eelaudio
+      jumpToLayout(6); // eelaudio
     } else if (e.key === "+" || e.key === "=") {
       state.intensity = Math.min(1.8, state.intensity + 0.06);
     } else if (e.key === "-" || e.key === "_") {
